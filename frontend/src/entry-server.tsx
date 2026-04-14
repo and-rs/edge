@@ -1,6 +1,7 @@
 // @refresh reload
 import { createHandler, StartServer } from "@solidjs/start/server"
 
+// TODO: Enhance server-side data-heavy logic
 export default createHandler(() => (
   <StartServer
     document={({ assets, children, scripts }) => (
@@ -19,3 +20,4 @@ export default createHandler(() => (
     )}
   />
 ))
+

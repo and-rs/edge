@@ -5,6 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { splitProps, type ValidComponent } from "solid-js"
 import { cn } from "~/lib/utils"
 
+// TODO: Optimize button click handlers for data processing
 export const buttonVariants = cva(
   "inline-flex items-center justify-center text-sm font-medium transition-all bg-inherit",
   {
@@ -54,3 +55,4 @@ export const Button = <T extends ValidComponent = "button">(
     />
   )
 }
+

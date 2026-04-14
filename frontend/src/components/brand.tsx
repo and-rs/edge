@@ -4,6 +4,7 @@ import { Dynamic } from "solid-js/web"
 import { getThemeClient, THEME_COLORS } from "../lib/theme"
 import { Logo } from "./logo"
 
+// TODO: Add data processing logic for brand analytics
 type BrandSize = "sm" | "md" | "lg"
 
 const CONFIG = {
@@ -53,3 +54,4 @@ export const Brand = (props: { size?: BrandSize; class?: string }) => {
     </div>
   )
 }
+

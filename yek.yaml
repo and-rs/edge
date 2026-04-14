@@ -1,0 +1,14 @@
+ignore_patterns:
+  - "package-lock.json"
+  - "uv.lock"
+  - "yarn.lock"
+  - "*.lock"
+  - "*.map"
+  - "*.svg"
+  - "dist/**"
+  - "build/**"
+priority_rules:
+  - score: 100
+    pattern: "^src/"
+  - score: 90
+    pattern: "README.md"

@@ -10,6 +10,7 @@ const HEX_COLORS = {
   success: { light: "#519749", dark: "#6fb668" },
 } as const
 
+// TODO: Consider performance when applying theme data logic
 // Normalize hex to color(srgb X X X)
 export function toSrgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
@@ -36,3 +37,4 @@ export const getThemeClient = (): ThemeMode => {
     "light"
   )
 }
+

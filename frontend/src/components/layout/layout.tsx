@@ -2,6 +2,7 @@ import type { JSX } from "solid-js"
 import { Footer } from "./footer"
 import { Nav } from "./nav"
 
+// TODO: Improve data-heavy logic in layout components
 export const Layout = (props: { children: JSX.Element }) => {
   return (
     <>
@@ -13,3 +14,4 @@ export const Layout = (props: { children: JSX.Element }) => {
     </>
   )
 }
+
