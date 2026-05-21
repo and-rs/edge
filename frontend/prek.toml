@@ -1,26 +1,24 @@
 [[repos]]
 repo = "local"
 
-# solidjs frontend
 [[repos.hooks]]
 id = "biome"
 name = "biome"
 language = "system"
 entry = "bun x @biomejs/biome check --write --no-errors-on-unmatched"
-files = { glob = "frontend/**/*.{js,ts,jsx,tsx,json,jsonc}" }
+files = {
+  glob = "**/*.{js,ts,jsx,tsx,json,jsonc}"
+}
 
 [[repos.hooks]]
 id = "ast-grep"
 name = "ast-grep"
 language = "system"
 entry = "ast-grep scan"
-files = { glob = "frontend/**/*" }
 
 [[repos.hooks]]
 id = "type-check"
 name = "type-check"
 language = "system"
-entry = "tsc --noEmit -p frontend/tsconfig.json"
+entry = "bun x tsc --noEmit -p tsconfig.json"
 pass_filenames = false
-files = { glob = "frontend/**/*.{ts,tsx}" }
-

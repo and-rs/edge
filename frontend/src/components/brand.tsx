@@ -9,7 +9,7 @@ type BrandSize = "sm" | "md" | "lg"
 const CONFIG = {
   sm: { tag: "h3", gap: "gap-1", logo: "brand-logo-sm" },
   md: { tag: "h2", gap: "gap-2", logo: "brand-logo-md" },
-  lg: { tag: "h1", gap: "gap-2", logo: "brand-logo-lg" },
+  lg: { tag: "h1", gap: "gap-4", logo: "brand-logo-lg" },
 } as const
 
 export const Brand = (props: { size?: BrandSize; class?: string }) => {
@@ -48,7 +48,7 @@ export const Brand = (props: { size?: BrandSize; class?: string }) => {
     <div class={`flex items-center ${v.gap} ${props.class || ""}`}>
       <Logo class={v.logo} />
       <Dynamic ref={ref} component={v.tag} class="drop-shadow-lg/12 brand-text">
-        Iridium {props.size === "lg" ? "Stint" : ""}
+        Iridium
       </Dynamic>
     </div>
   )

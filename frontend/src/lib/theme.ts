@@ -1,4 +1,4 @@
-const HEX_COLORS = {
+export const HEX_COLORS = {
   foreground: { light: "#070b0d", dark: "#f8fbfc" },
   background: { light: "#f8fbfc", dark: "#070b0d" },
   card: { light: "#edf5f7", dark: "#0c1317" },

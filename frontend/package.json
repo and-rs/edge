@@ -2,9 +2,9 @@
   "name": "frontend",
   "type": "module",
   "scripts": {
-    "dev": "vinxi dev --no-color",
-    "build": "vinxi build",
-    "start": "vinxi start"
+    "dev": "bun x vinxi dev --no-color",
+    "build": "bun x vinxi build",
+    "start": "bun x vinxi start"
   },
   "engines": {
     "bun": ">=1.3.6"

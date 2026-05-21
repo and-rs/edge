@@ -3,16 +3,16 @@ package config
 import "os"
 
 type Config struct {
-    Addr string
+	Addr string
 }
 
 func Load() Config {
-    var addr string = os.Getenv("STINT_ADDR")
-    if addr == "" {
-        addr = ":8080"
-    }
+	addr := os.Getenv("STINT_ADDR")
+	if addr == "" {
+		addr = ":8080"
+	}
 
-    return Config{
-        Addr: addr,
-    }
+	return Config{
+		Addr: addr,
+	}
 }

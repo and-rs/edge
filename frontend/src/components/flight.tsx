@@ -5,7 +5,17 @@ import { createStore } from "solid-js/store"
 import { FlightService } from "~/api/flight/v1/flight_pb"
 import { Button } from "./ui/button"
 
-const transport = createConnectTransport({ baseUrl: "http://localhost:8000" })
+const getApiBaseUrl = (): string => {
+  const envBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+  if (envBaseUrl) return envBaseUrl
+  if (!import.meta.env.SSR && typeof window !== "undefined") {
+    if (import.meta.env.DEV) return `${window.location.protocol}//${window.location.hostname}:8080`
+    return window.location.origin
+  }
+  return "http://127.0.0.1:8080"
+}
+
+const transport = createConnectTransport({ baseUrl: getApiBaseUrl() })
 
 const client = createClient(FlightService, transport)
 
@@ -15,10 +25,11 @@ export const FlightDiagnostics = () => {
     mem: 0,
     rtt: 0,
     loading: false,
+    error: "",
   })
 
   const probe = async () => {
-    setData("loading", true)
+    setData({ loading: true, error: "" })
     const start = performance.now()
 
     const now = Date.now()
@@ -40,7 +51,10 @@ export const FlightDiagnostics = () => {
         })
       })
     } catch (err) {
-      setData("loading", false)
+      setData({
+        loading: false,
+        error: err instanceof Error ? err.message : "Probe failed",
+      })
       console.error("Probe failed:", err)
     }
   }
@@ -68,6 +82,11 @@ export const FlightDiagnostics = () => {
           <div class="font-mono text-lg">{data.mem.toFixed(1)}%</div>
         </div>
       </div>
+      {data.error ? (
+        <div class="font-mono text-sm text-red-600 dark:text-red-400">
+          {data.error}
+        </div>
+      ) : null}
     </div>
   )
 }

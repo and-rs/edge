@@ -11,9 +11,9 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
+    "baseUrl": ".",
     "types": ["vinxi/types/client", "bun-types"],
     "isolatedModules": true,
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"]
     }

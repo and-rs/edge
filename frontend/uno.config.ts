@@ -9,7 +9,7 @@ import { THEME_COLORS } from "./src/lib/theme"
 // Add any base tags here following the "tag-suffix" pattern
 // biome-ignore format: better to not fold here
 const TAGS = {
-  "h1-title": "text-4xl sm:text-6xl font-bold tracking-tighter text-primary",
+  "h1-title": "text-6xl font-bold tracking-tighter sm:text-7xl md:text-8xl text-primary",
   "h2-title": "text-4xl font-semibold tracking-tighter text-primary",
   "h3-title": "text-2xl font-semibold tracking-tight text-primary",
 }
@@ -18,24 +18,30 @@ const TAGS = {
 // biome-ignore format: better to not fold here
 const UTILS = {
   centered: "flex justify-center items-center",
-  "bento-cell": "p-3 sm:p-4 shadow bg-card border-2 border-muted hover:border-secondary transition-all",
+  "bento-cell": "p-4 shadow bg-card border-2 border-muted hover:border-secondary transition-all",
   "btn-link-inactive": "border-b-2 border-transparent hover:border-muted",
   "btn-link-active": "border-b-2 border-primary",
   "brand-text": "tracking-tighter cursor-default text-light transition-colors",
-  "brand-logo-lg": "sm:size-16 size-18 drop-shadow-sm/20",
+  "brand-logo-lg": "size-14 sm:size-20 md:size-24 drop-shadow-sm/20",
   "brand-logo-md": "size-10 drop-shadow/10",
   "brand-logo-sm": "size-8",
+  "negative-text": "text-lg px-2 bg-accent/20 w-fit font-mono underline-offset-3",
 }
 
 export default defineConfig({
   transformers: [transformerVariantGroup()],
   presets: [
-    presetWind4(),
+    presetWind4({
+      dark: {
+        dark: '[data-kb-theme="dark"]',
+        light: '[data-kb-theme="light"]',
+      },
+    }),
     presetWebFonts({
       provider: "google",
       fonts: {
         sans: "Golos Text",
-        mono: "IBM Plex Mono",
+        mono: "JetBrains Mono",
       },
     }),
   ],
@@ -43,7 +49,7 @@ export default defineConfig({
     colors: Object.fromEntries(
       Object.keys(THEME_COLORS).map((key) => [key, `var(--${key})`]),
     ),
-    breakpoint: {
+    breakpoints: {
       sm: "425px",
       md: "768px",
     },
@@ -80,6 +86,7 @@ export default defineConfig({
           const tagCSS = css.replace(new RegExp(`\\.${shortcut}`, "g"), tag)
           generatedStyles.push(tagCSS)
         }
+
         return `${baseStyles} \n ${generatedStyles.join("\n")}`
       },
     },

@@ -2,7 +2,7 @@ import { For } from "solid-js"
 import { NavLink } from "~/components/ui/navlink"
 import { ThemeSwitch } from "./theme-switch"
 
-const INTERNAL_ROUTES = [{ href: "/", label: "Normalize" }]
+const INTERNAL_ROUTES = [{ href: "/", label: "Home" }]
 
 export const Nav = () => {
   return (

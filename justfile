@@ -26,22 +26,8 @@ clean-gen:
 
 regen: clean-gen gen
 
-dev-frontend:
-    cd frontend && bun dev
-
-dev-backend:
-    cd backend && go run ./cmd/server
-
-dev:
-    just dev-backend
-
-check-frontend:
-    cd frontend && bun run biome check src
-
-check-backend:
-    cd backend && go test ./...
-
-check: check-frontend check-backend
+dev backend_addr=":8080" frontend_port="3000":
+    ./scripts/dev.sh {{backend_addr}} {{frontend_port}}
 
 build-frontend:
     cd frontend && bun run build && bun run .output/server/index.mjs

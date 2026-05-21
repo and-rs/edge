@@ -29,7 +29,7 @@ export const Logo = (props: { class?: string }) => {
       {...rest}
     >
       <img
-        src="iridium.png"
+        src="/iridium.png"
         class="w-full h-full"
         alt="Iridium Icon Logo"
         draggable={false}

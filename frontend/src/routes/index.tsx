@@ -1,7 +1,7 @@
 import { Brand } from "~/components/brand"
 import { FlightDiagnostics } from "~/components/flight"
 
-const NormalizeRoute = () => {
+const HomeRoute = () => {
   return (
     <main class="px-4 pt-4 pb-3">
       <div class="flex flex-col gap-3">
@@ -18,5 +18,5 @@ const NormalizeRoute = () => {
   )
 }
 
-export default NormalizeRoute
+export default HomeRoute
 

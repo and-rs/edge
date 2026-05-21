@@ -4,7 +4,7 @@ import { For } from "solid-js"
 import { NavLink } from "~/components/ui/navlink"
 import { Brand } from "../brand"
 
-const INTERNAL_ROUTES = [{ href: "/", label: "Normalize" }]
+const INTERNAL_ROUTES = [{ href: "/", label: "Home" }]
 
 const EXTERNAL_LINKS = [
   {

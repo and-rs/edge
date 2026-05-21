@@ -1,17 +1,17 @@
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/index/stint/backend/internal/app"
-    "github.com/index/stint/backend/internal/config"
+	"github.com/index/stint/backend/internal/app"
+	"github.com/index/stint/backend/internal/config"
 )
 
 func main() {
-    var cfg config.Config = config.Load()
-    var server *app.Server = app.NewServer(cfg)
+	cfg := config.Load()
+	server := app.NewServer(cfg)
 
-    if err := server.Run(); err != nil {
-        log.Fatal(err)
-    }
+	if err := server.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
