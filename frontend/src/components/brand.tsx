@@ -12,8 +12,14 @@ const CONFIG = {
   lg: { tag: "h1", gap: "gap-4", logo: "brand-logo-lg" },
 } as const
 
-export const Brand = (props: { size?: BrandSize; class?: string }) => {
+export const Brand = (props: {
+  size?: BrandSize
+  class?: string
+  text?: string
+  logoSrc?: string
+}) => {
   const size = props.size || "md"
+  const text = props.text || "Iridium"
   const v = CONFIG[size]
   let ref: HTMLHeadingElement | undefined
 
@@ -46,9 +52,9 @@ export const Brand = (props: { size?: BrandSize; class?: string }) => {
 
   return (
     <div class={`flex items-center ${v.gap} ${props.class || ""}`}>
-      <Logo class={v.logo} />
+      <Logo class={v.logo} src={props.logoSrc} />
       <Dynamic ref={ref} component={v.tag} class="drop-shadow-lg/12 brand-text">
-        Iridium
+        {text}
       </Dynamic>
     </div>
   )

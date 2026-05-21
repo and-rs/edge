@@ -22,11 +22,32 @@ const client = createClient(FlightService, transport)
 export const FlightDiagnostics = () => {
   const [data, setData] = createStore({
     cpu: 0,
-    mem: 0,
+    frontendMemBytes: null as number | null,
+    backendMemBytes: 0,
     rtt: 0,
     loading: false,
     error: "",
   })
+
+  const getFrontendMemoryBytes = (): number | null => {
+    const performanceWithMemory = performance as Performance & {
+      memory?: { usedJSHeapSize: number }
+    }
+    return performanceWithMemory.memory?.usedJSHeapSize ?? null
+  }
+
+  const formatBytes = (bytes: number | null): string => {
+    if (bytes === null) return "n/a"
+    if (bytes < 1024) return `${bytes} B`
+    const units = ["KB", "MB", "GB", "TB"]
+    let value = bytes / 1024
+    let unitIndex = 0
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024
+      unitIndex += 1
+    }
+    return `${value.toFixed(1)} ${units[unitIndex]}`
+  }
 
   const probe = async () => {
     setData({ loading: true, error: "" })
@@ -45,7 +66,8 @@ export const FlightDiagnostics = () => {
       batch(() => {
         setData({
           cpu: response.cpuPercent,
-          mem: response.memoryPercent,
+          frontendMemBytes: getFrontendMemoryBytes(),
+          backendMemBytes: Number(response.backendMemoryBytes),
           rtt: Math.floor(performance.now() - start),
           loading: false,
         })
@@ -78,8 +100,12 @@ export const FlightDiagnostics = () => {
           <div class="font-mono text-lg">{data.cpu.toFixed(1)}%</div>
         </div>
         <div>
-          <div class="text-xs uppercase">Memory</div>
-          <div class="font-mono text-lg">{data.mem.toFixed(1)}%</div>
+          <div class="text-xs uppercase">Frontend Memory</div>
+          <div class="font-mono text-lg">{formatBytes(data.frontendMemBytes)}</div>
+        </div>
+        <div>
+          <div class="text-xs uppercase">Backend Memory</div>
+          <div class="font-mono text-lg">{formatBytes(data.backendMemBytes)}</div>
         </div>
       </div>
       {data.error ? (

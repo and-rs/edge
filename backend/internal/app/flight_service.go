@@ -29,7 +29,7 @@ func (s *FlightService) Probe(
 		ClientSentAt:      req.Msg.GetClientSentAt(),
 		ServerProcessedAt: timestamppb.Now(),
 		CpuPercent:        s.cpuPercent(),
-		MemoryPercent:     memoryPercent(),
+		BackendMemoryBytes: memoryBytes(),
 		UptimeSeconds:     uint64(time.Since(s.startedAt).Seconds()),
 	}
 
@@ -62,12 +62,8 @@ func (s *FlightService) cpuPercent() float32 {
 	return cpuPercent
 }
 
-func memoryPercent() float32 {
+func memoryBytes() uint64 {
 	var stats runtime.MemStats
 	runtime.ReadMemStats(&stats)
-	if stats.Sys == 0 {
-		return 0
-	}
-
-	return float32(stats.Alloc) / float32(stats.Sys) * 100
+	return stats.Alloc
 }

@@ -1,8 +1,13 @@
 import { animate } from "animejs"
 import { createSignal, splitProps } from "solid-js"
 
-export const Logo = (props: { class?: string }) => {
-  const [local, rest] = splitProps(props, ["class"])
+export const Logo = (props: {
+  class?: string
+  src?: string
+  alt?: string
+  ariaLabel?: string
+}) => {
+  const [local, rest] = splitProps(props, ["class", "src", "alt", "ariaLabel"])
   const [rotations, setRotations] = createSignal(0)
 
   let logoRef: HTMLButtonElement | undefined
@@ -24,14 +29,14 @@ export const Logo = (props: { class?: string }) => {
       ref={logoRef}
       onClick={handleRotate}
       class={`z-10 aspect-square text-primary ${local.class || ""}`}
-      aria-label="Rotate Iridium Logo"
+      aria-label={local.ariaLabel || "Rotate Iridium Edge Logo"}
       tabindex="-1"
       {...rest}
     >
       <img
-        src="/iridium.png"
+        src={local.src || "/iridium.png"}
         class="w-full h-full"
-        alt="Iridium Icon Logo"
+        alt={local.alt || "Iridium Edge Logo"}
         draggable={false}
       />
     </button>

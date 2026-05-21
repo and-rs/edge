@@ -22,7 +22,7 @@ const UTILS = {
   "btn-link-inactive": "border-b-2 border-transparent hover:border-muted",
   "btn-link-active": "border-b-2 border-primary",
   "brand-text": "tracking-tighter cursor-default text-light transition-colors",
-  "brand-logo-lg": "size-14 sm:size-20 md:size-24 drop-shadow-sm/20",
+  "brand-logo-lg": "size-14 sm:size-20 md:size-30 drop-shadow-sm/20",
   "brand-logo-md": "size-10 drop-shadow/10",
   "brand-logo-sm": "size-8",
   "negative-text": "text-lg px-2 bg-accent/20 w-fit font-mono underline-offset-3",
