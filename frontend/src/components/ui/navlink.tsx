@@ -4,7 +4,6 @@ import { type Component, createMemo, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import { cn } from "~/lib/utils"
 
-// TODO: Improve navigation logic for large datasets
 interface NavLinkProps {
   href: string
   label: string

@@ -2,7 +2,8 @@
 
 ## Goal
 
-Personal hackathon-scale tooling for fast event/news intelligence.
+Personal hackathon-scale event-to-market intelligence for crypto and
+prediction-market users.
 
 ## Core stack
 
@@ -11,13 +12,14 @@ Personal hackathon-scale tooling for fast event/news intelligence.
 - RPC: Connect-RPC with protobuf contracts in `proto/`
 - Database: Postgres
 - AI: OpenAI first, provider-swappable later
-- Payments: USDC via HTTP-accessible services/libs
+- Payments: USDC on Arc/Circle via plain HTTP, swappable later
 - Infra: self-hosted, no BaaS
 
 ## Architecture
 
-- `frontend/`: feed, watchlists, premium gates, auth UI
-- `backend/`: ingest, clustering, scoring, thesis generation, entitlements
+- `frontend/`: signal feed, watchlists, premium gates, auth UI
+- `backend/`: ingest, clustering, market mapping, scoring, thesis generation,
+  entitlements
 - `proto/`: shared API contracts for TS and Go
 - Postgres stores raw items, canonical events, asset links, scores, theses,
   watchlists, entitlements
@@ -40,7 +42,7 @@ Personal hackathon-scale tooling for fast event/news intelligence.
 ### 3. Event mapping
 
 - Map event to assets, markets, sectors, watchlists
-- Start rule-first: ticker cashtags, symbol dictionary, keyword mapping
+- Start rule-first: ticker cashtags, venue dictionaries, keyword mapping
 - Add AI assist later if needed
 
 ### 4. Ranking
@@ -54,15 +56,14 @@ Personal hackathon-scale tooling for fast event/news intelligence.
 - AI summary per canonical event
 - Output:
   - what happened
-  - why it matters
-  - what likely moves
-- Keep short and structured
+  - why it matters now
+  - what is moving vs not priced in
 
 ### 6. Product surface
 
-- Alert feed
+- Signal feed
 - Saved watchlists
-- Premium unlock
+- Premium unlocks
 - Basic USDC entitlement
 
 ## Hackathon scope
@@ -73,7 +74,7 @@ Personal hackathon-scale tooling for fast event/news intelligence.
 - Event feed
 - Dedupe
 - Basic clustering
-- Rule-based asset mapping
+- Rule-based market mapping
 - Ranking
 - AI thesis
 - Premium flag + simple entitlement record
@@ -82,7 +83,7 @@ Personal hackathon-scale tooling for fast event/news intelligence.
 
 - Perfect X ingest
 - Real-time push alerts
-- Complex onchain automation
+- Trading/execution automation
 - Deep portfolio logic
 - Multi-service architecture
 

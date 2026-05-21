@@ -10,7 +10,6 @@ import { isServer, Suspense } from "solid-js/web"
 import { getCookie } from "vinxi/http"
 import { Layout } from "./components/layout/layout"
 
-// TODO: Optimize data fetching logic for heavy operations
 function getThemeServer() {
   "use server"
   const colorMode = getCookie("kb-color-mode")

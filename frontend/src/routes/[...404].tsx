@@ -1,6 +1,5 @@
 import { A } from "@solidjs/router"
 
-// TODO: Handle data logic in 404 error page components
 const NotFoundRoute = () => {
   return (
     <main class="m-4 text-center bento-cell">

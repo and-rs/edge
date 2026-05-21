@@ -1,7 +1,6 @@
 import { animate } from "animejs"
 import { createSignal, splitProps } from "solid-js"
 
-// TODO: Consider performance impact of data-heavy operations
 export const Logo = (props: { class?: string }) => {
   const [local, rest] = splitProps(props, ["class"])
   const [rotations, setRotations] = createSignal(0)

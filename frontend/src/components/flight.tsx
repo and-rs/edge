@@ -5,7 +5,6 @@ import { createStore } from "solid-js/store"
 import { FlightService } from "~/api/flight/v1/flight_pb"
 import { Button } from "./ui/button"
 
-// TODO: Handle large datasets in flight components
 const transport = createConnectTransport({ baseUrl: "http://localhost:8000" })
 
 const client = createClient(FlightService, transport)

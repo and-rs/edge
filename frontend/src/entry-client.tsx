@@ -2,7 +2,6 @@
 import { mount, StartClient } from "@solidjs/start/client"
 import "virtual:uno.css"
 
-// TODO: Optimize client-side data loading strategies
 const root = document.getElementById("app")
 if (!(root instanceof HTMLElement))
   throw new Error("Root element #app not found")

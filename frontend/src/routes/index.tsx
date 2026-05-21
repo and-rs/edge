@@ -1,7 +1,6 @@
 import { Brand } from "~/components/brand"
 import { FlightDiagnostics } from "~/components/flight"
 
-// TODO: Add data-heavy logic for improved performance
 const NormalizeRoute = () => {
   return (
     <main class="px-4 pt-4 pb-3">
