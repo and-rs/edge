@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package api.flight.v1;
 
+option go_package = "github.com/index/stint/backend/gen/api/flight/v1;flightv1";
+
 import "google/protobuf/timestamp.proto";
 
 service FlightService {

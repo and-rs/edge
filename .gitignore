@@ -1,5 +1,5 @@
 # we ignore the generated code
 # it's reproducible for a reason
+backend/gen
 frontend/src/api
-engine/src/api
 node_modules
