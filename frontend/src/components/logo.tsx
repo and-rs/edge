@@ -42,4 +42,3 @@ export const Logo = (props: {
     </button>
   )
 }
-

@@ -26,11 +26,11 @@ func (s *FlightService) Probe(
 	req *connect.Request[flightv1.ProbeRequest],
 ) (*connect.Response[flightv1.ProbeResponse], error) {
 	response := &flightv1.ProbeResponse{
-		ClientSentAt:      req.Msg.GetClientSentAt(),
-		ServerProcessedAt: timestamppb.Now(),
-		CpuPercent:        s.cpuPercent(),
+		ClientSentAt:       req.Msg.GetClientSentAt(),
+		ServerProcessedAt:  timestamppb.Now(),
+		CpuPercent:         s.cpuPercent(),
 		BackendMemoryBytes: memoryBytes(),
-		UptimeSeconds:     uint64(time.Since(s.startedAt).Seconds()),
+		UptimeSeconds:      uint64(time.Since(s.startedAt).Seconds()),
 	}
 
 	return connect.NewResponse(response), nil

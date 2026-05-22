@@ -15,4 +15,3 @@ const NotFoundRoute = () => {
 }
 
 export default NotFoundRoute
-

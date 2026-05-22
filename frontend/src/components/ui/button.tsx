@@ -54,4 +54,3 @@ export const Button = <T extends ValidComponent = "button">(
     />
   )
 }
-

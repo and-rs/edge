@@ -13,4 +13,3 @@ export const Layout = (props: { children: JSX.Element }) => {
     </>
   )
 }
-

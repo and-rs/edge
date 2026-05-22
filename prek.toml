@@ -1,4 +1,37 @@
 [[repos]]
-rev = "v6.0.0"
-repo = "https://github.com/pre-commit/pre-commit-hooks"
-hooks = []
+repo = "local"
+
+[[repos.hooks]]
+id = "frontend-biome"
+name = "frontend-biome"
+language = "system"
+entry = "cd frontend && bun x @biomejs/biome check --write --no-errors-on-unmatched ."
+pass_filenames = false
+
+[[repos.hooks]]
+id = "frontend-ast-grep"
+name = "frontend-ast-grep"
+language = "system"
+entry = "cd frontend && ast-grep scan"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "frontend-type-check"
+name = "frontend-type-check"
+language = "system"
+entry = "cd frontend && bun x tsc --noEmit -p tsconfig.json"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "backend-gofmt"
+name = "backend-gofmt"
+language = "system"
+entry = "cd backend && find . -name '*.go' -print0 | xargs -0 gofmt -w"
+pass_filenames = false
+
+[[repos.hooks]]
+id = "backend-go-vet"
+name = "backend-go-vet"
+language = "system"
+entry = "cd backend && go vet ./..."
+pass_filenames = false

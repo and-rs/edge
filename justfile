@@ -12,11 +12,11 @@ setup-backend:
 setup-root:
     bun install
 
-setup: setup-root setup-frontend setup-backend
+setup: setup-root setup-frontend setup-backend install-hooks
     @echo "ready"
 
 install-hooks:
-    bunx prek install
+    bun x @j178/prek install
 
 gen:
     buf generate
@@ -34,3 +34,12 @@ build-frontend:
 
 build-backend:
     cd backend && go build ./...
+
+fmt-backend:
+    cd backend && find . -name '*.go' -print0 | xargs -0 gofmt -w
+
+lint-backend:
+    cd backend && go vet ./...
+
+check:
+    env NO_COLOR=1 bun x @j178/prek run --all-files

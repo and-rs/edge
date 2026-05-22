@@ -59,4 +59,3 @@ export const Brand = (props: {
     </div>
   )
 }
-
