@@ -2,8 +2,8 @@
 
 ## Goal
 
-Personal hackathon-scale event-to-market intelligence for crypto and
-prediction-market users.
+Hackathon-scale event-to-market intelligence for crypto and prediction-market operators.
+
 
 ## Core stack
 
@@ -17,67 +17,50 @@ prediction-market users.
 
 ## Architecture
 
-- `frontend/`: signal feed, watchlists, premium gates, auth UI
-- `backend/`: ingest, clustering, market mapping, scoring, thesis generation,
-  entitlements
+- `frontend/`: homepage, product page, signal feed, premium gates, auth UI
+- `backend/`: ingest, market mapping, scoring, thesis generation, entitlements
 - `proto/`: shared API contracts for TS and Go
-- Postgres stores raw items, canonical events, asset links, scores, theses,
-  watchlists, entitlements
+- Postgres stores raw items, canonical events, asset links, scores, theses, entitlements
 
 ## Feature slices
 
-### 1. Ingest
+### 1. Intro and product surface
 
-- RSS/news links
-- X/manual links
-- Normalize into common source item shape
+- Sharper homepage for intro, positioning, and demo entry
+- Dedicated product page for signal feed, source coverage, market linkage, and ARC USDC path
+- Deploy both early with stable demo path
+
+### 2. Ingest and mapping
+
+- RSS/news links first
+- Add X/manual links next
 - Store raw payload, source, timestamps, hash
+- Rule-first market mapping with ticker, venue, keyword dictionaries
 
-### 2. Dedupe and clustering
-
-- Exact dedupe by normalized URL/content hash
-- Soft dedupe by title similarity + source proximity + time window
-- Cluster related source items into one canonical event
-
-### 3. Event mapping
-
-- Map event to assets, markets, sectors, watchlists
-- Start rule-first: ticker cashtags, venue dictionaries, keyword mapping
-- Add AI assist later if needed
-
-### 4. Ranking
+### 3. Ranking and thesis
 
 - Score by impact, novelty, confidence, recency decay
 - Use deterministic weighted formula first
-- Store score breakdown for debugging
+- AI summary per event: what happened, why it matters now, what may be mispriced
 
-### 5. Thesis generation
+### 4. Entitlements
 
-- AI summary per canonical event
-- Output:
-  - what happened
-  - why it matters now
-  - what is moving vs not priced in
-
-### 6. Product surface
-
-- Signal feed
-- Saved watchlists
 - Premium unlocks
 - Basic USDC entitlement
+- ARC USDC integration is hackathon centerpiece
 
 ## Hackathon scope
 
 ### Ship first
 
+- Homepage + dedicated product page
+- Deploy both
 - Manual links + RSS ingest
 - Event feed
-- Dedupe
-- Basic clustering
 - Rule-based market mapping
 - Ranking
 - AI thesis
-- Premium flag + simple entitlement record
+- ARC USDC entitlement path
 
 ### Skip or fake first
 

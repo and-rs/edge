@@ -27,6 +27,17 @@ export const FlightDiagnostics = () => {
     backendMemBytes: 0,
     rtt: 0,
     loading: false,
+    signalsLoading: false,
+    signals: [] as Array<{
+      headline: string
+      source: string
+      sourceUrl: string
+      publishedAt?: { seconds?: bigint | number; nanos?: number }
+      marketQuestion: string
+      marketUrl: string
+      whyItMatters: string
+      score: number
+    }>,
     error: "",
   })
 
@@ -48,6 +59,12 @@ export const FlightDiagnostics = () => {
       unitIndex += 1
     }
     return `${value.toFixed(1)} ${units[unitIndex]}`
+  }
+
+  const formatPublishedAt = (publishedAt?: { seconds?: bigint | number; nanos?: number }): string => {
+    if (!publishedAt?.seconds) return "unknown"
+    const seconds = Number(publishedAt.seconds)
+    return new Date(seconds * 1000).toLocaleString()
   }
 
   const probe = async () => {
@@ -82,15 +99,42 @@ export const FlightDiagnostics = () => {
     }
   }
 
+  const loadSignals = async () => {
+    setData({ signalsLoading: true, error: "" })
+
+    try {
+      const response = await client.listSignals({})
+      setData({
+        signalsLoading: false,
+        signals: response.signals,
+      })
+    } catch (err) {
+      setData({
+        signalsLoading: false,
+        error: err instanceof Error ? err.message : "Signal fetch failed",
+      })
+      console.error("Signal fetch failed:", err)
+    }
+  }
+
   return (
     <div class="flex flex-col gap-3 bento-cell">
-      <Button
-        onClick={probe}
-        disabled={data.loading}
-        class="w-min whitespace-nowrap"
-      >
-        {data.loading ? "PROBING..." : "RUN DIAGNOSTIC"}
-      </Button>
+      <div class="flex flex-row gap-2">
+        <Button
+          onClick={probe}
+          disabled={data.loading}
+          class="w-min whitespace-nowrap"
+        >
+          {data.loading ? "PROBING..." : "RUN DIAGNOSTIC"}
+        </Button>
+        <Button
+          onClick={loadSignals}
+          disabled={data.signalsLoading}
+          class="w-min whitespace-nowrap"
+        >
+          {data.signalsLoading ? "LOADING..." : "LOAD TEST DRIVE"}
+        </Button>
+      </div>
       <div class="flex flex-row gap-6">
         <div>
           <div class="text-xs uppercase">Latency</div>
@@ -112,6 +156,26 @@ export const FlightDiagnostics = () => {
             {formatBytes(data.backendMemBytes)}
           </div>
         </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        {data.signals.map((signal) => (
+          <a
+            class="flex flex-col gap-2 rounded border border-muted p-3 hover:border-secondary transition-all"
+            href={signal.marketUrl || signal.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <div class="flex flex-col gap-1">
+              <div class="text-sm text-muted-foreground uppercase">
+                {signal.source} · score {signal.score.toFixed(1)}
+              </div>
+              <div class="font-medium">{signal.headline}</div>
+              <div class="text-sm opacity-80">{formatPublishedAt(signal.publishedAt)}</div>
+            </div>
+            <div class="text-sm">{signal.whyItMatters}</div>
+            <div class="text-sm font-mono opacity-80">{signal.marketQuestion}</div>
+          </a>
+        ))}
       </div>
       {data.error ? (
         <div class="font-mono text-sm text-red-600 dark:text-red-400">

@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 service FlightService {
   rpc Probe(ProbeRequest) returns (ProbeResponse);
+  rpc ListSignals(ListSignalsRequest) returns (ListSignalsResponse);
 }
 
 message ProbeRequest {
@@ -20,4 +21,21 @@ message ProbeResponse {
   float cpu_percent = 3;
   uint64 backend_memory_bytes = 4;
   uint64 uptime_seconds = 5;
+}
+
+message ListSignalsRequest {}
+
+message ListSignalsResponse {
+  repeated Signal signals = 1;
+}
+
+message Signal {
+  string headline = 1;
+  string source = 2;
+  string source_url = 3;
+  google.protobuf.Timestamp published_at = 4;
+  string market_question = 5;
+  string market_url = 6;
+  string why_it_matters = 7;
+  double score = 8;
 }
