@@ -2,8 +2,8 @@ import Github from "lucide-solid/icons/github"
 import Linkedin from "lucide-solid/icons/linkedin"
 import { For } from "solid-js"
 import { NavLink } from "~/components/ui/navlink"
+import { FlightDiagnostics } from "~/components/flight"
 import { Brand } from "../brand"
-
 const INTERNAL_ROUTES = [{ href: "/", label: "Home" }]
 
 const EXTERNAL_LINKS = [
@@ -25,8 +25,8 @@ export const Footer = () => {
       <div class="flex flex-col gap-4 justify-between md:flex-[2/3]">
         <Brand size="md" />
 
-        <div class="flex flex-col">
-          <p class="font-medium">Researching the future of performance.</p>
+        <div class="flex flex-col gap-3">
+          <FlightDiagnostics />
           <span>Copyright (c) 2026 Iridium. All Rights Reserved.</span>
         </div>
       </div>

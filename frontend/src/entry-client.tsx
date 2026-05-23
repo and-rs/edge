@@ -2,8 +2,15 @@
 import { mount, StartClient } from "@solidjs/start/client"
 import "virtual:uno.css"
 
-const root = document.getElementById("app")
-if (!(root instanceof HTMLElement))
-  throw new Error("Root element #app not found")
+const mountApp = () => {
+  const root = document.getElementById("app")
+  if (!(root instanceof HTMLElement)) {
+    throw new Error("Root element #app not found")
+  }
 
-mount(() => <StartClient />, root)
+  return mount(() => <StartClient />, root)
+}
+
+export default mountApp
+
+mountApp()

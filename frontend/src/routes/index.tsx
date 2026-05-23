@@ -1,7 +1,9 @@
 import { animate, stagger } from "animejs"
+import ChevronsRight from "lucide-solid/icons/chevrons-right"
 import { For, onMount } from "solid-js"
 import { Brand } from "~/components/brand"
-import { FlightDiagnostics } from "~/components/flight"
+import { SignalTestDrive } from "~/components/signal-test-drive"
+import { PowerButton } from "~/components/ui/power-button"
 
 const audience = ["Operators", "Desks", "Research"]
 const power = ["Sources", "Markets", "AI", "ARC USDC"]
@@ -68,6 +70,14 @@ const HomeRoute = () => {
     })
   }
 
+  const jumpToSignalTest = (event: MouseEvent) => {
+    event.preventDefault()
+    const signalTest = document.getElementById("signal-test-drive")
+    if (!signalTest) return
+    window.history.replaceState(null, "", "#signal-test-drive")
+    signalTest.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
   onMount(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
     if (!heroRef || !subRef || !endgameRef) return
@@ -119,6 +129,16 @@ const HomeRoute = () => {
             <p ref={subRef} class="text-base opacity-80 md:text-lg">
               Raw events in. Ranked market signals out. Premium access in USDC.
             </p>
+
+            <PowerButton
+              as="a"
+              href="#signal-test-drive"
+              class="w-min"
+              icon={<ChevronsRight class="size-7" strokeWidth={1.5} />}
+              onClick={jumpToSignalTest}
+            >
+              open signal test
+            </PowerButton>
           </div>
         </section>
 
@@ -204,7 +224,7 @@ const HomeRoute = () => {
           </div>
         </section>
 
-        <FlightDiagnostics />
+        <SignalTestDrive />
       </div>
     </main>
   )

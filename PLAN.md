@@ -26,8 +26,8 @@ Hackathon-scale event-to-market intelligence for crypto and prediction-market op
 
 ### 1. Intro and product surface
 
-- Sharper homepage for intro, positioning, and demo entry
-- Dedicated product page for signal feed, source coverage, market linkage, and ARC USDC path
+- Homepage shipped for intro, positioning, and demo entry
+- Next: dedicated product page for signal feed, source coverage, market linkage, and ARC USDC path
 - Deploy both early with stable demo path
 
 ### 2. Ingest and mapping
@@ -53,10 +53,11 @@ Hackathon-scale event-to-market intelligence for crypto and prediction-market op
 
 ### Ship first
 
-- Homepage + dedicated product page
+- Homepage shipped
+- Dedicated product page
 - Deploy both
 - Manual links + RSS ingest
-- Event feed
+- Test drive appearance boost + real signal workflow
 - Rule-based market mapping
 - Ranking
 - AI thesis
