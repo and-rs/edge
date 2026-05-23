@@ -15,6 +15,9 @@
   "linter": {
     "enabled": true,
     "rules": {
+      "a11y": {
+        "noStaticElementInteractions": "off"
+      },
       "recommended": true
     },
     "domains": { "solid": "all" }

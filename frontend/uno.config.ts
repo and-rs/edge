@@ -26,6 +26,9 @@ const UTILS = {
   "brand-logo-md": "size-10 drop-shadow/10",
   "brand-logo-sm": "size-8",
   "negative-text": "text-lg px-2 bg-accent/20 w-fit font-mono underline-offset-3",
+  badge: "px-3 py-1 text-sm opacity-80",
+  "badge-outline": "badge border border-current/12",
+  "badge-muted": "badge bg-current/6",
 }
 
 export default defineConfig({
