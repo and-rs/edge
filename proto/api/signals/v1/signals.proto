@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package api.signals.v1;
+
+option go_package = "github.com/index/stint/backend/gen/api/signals/v1;signalsv1";
+
+import "google/protobuf/timestamp.proto";
+
+service SignalsService {
+  rpc ListSignals(ListSignalsRequest) returns (ListSignalsResponse);
+  rpc StreamSignals(ListSignalsRequest) returns (stream SignalUpdate);
+}
+
+message ListSignalsRequest {}
+
+message ListSignalsResponse {
+  repeated Signal signals = 1;
+  Stage event_ingest = 2;
+  Stage market_ingest = 3;
+  Stage ai_judgment = 4;
+  string summary = 5;
+  string failure_reason = 6;
+}
+
+message SignalUpdate {
+  SignalUpdateType type = 1;
+  Stage event_ingest = 2;
+  Stage market_ingest = 3;
+  Stage ai_judgment = 4;
+  Signal signal = 5;
+  string summary = 6;
+  string failure_reason = 7;
+  bool done = 8;
+}
+
+enum SignalUpdateType {
+  SIGNAL_UPDATE_TYPE_UNSPECIFIED = 0;
+  SIGNAL_UPDATE_TYPE_STAGE = 1;
+  SIGNAL_UPDATE_TYPE_SIGNAL = 2;
+  SIGNAL_UPDATE_TYPE_SUMMARY = 3;
+  SIGNAL_UPDATE_TYPE_DONE = 4;
+}
+
+message Stage {
+  StageStatus status = 1;
+  string label = 2;
+  string detail = 3;
+}
+
+enum StageStatus {
+  STAGE_STATUS_UNSPECIFIED = 0;
+  STAGE_STATUS_READY = 1;
+  STAGE_STATUS_RUNNING = 8;
+  STAGE_STATUS_UNAVAILABLE = 2;
+  STAGE_STATUS_DISABLED = 3;
+  STAGE_STATUS_MISCONFIGURED = 4;
+  STAGE_STATUS_TIMEOUT = 5;
+  STAGE_STATUS_INVALID = 6;
+  STAGE_STATUS_SKIPPED = 7;
+}
+
+enum MatchType {
+  MATCH_TYPE_UNSPECIFIED = 0;
+  MATCH_TYPE_NO_MATCH = 1;
+  MATCH_TYPE_WATCHLIST = 2;
+  MATCH_TYPE_MARKET_LINKED = 3;
+}
+
+message Signal {
+  string headline = 1;
+  string event_source = 2;
+  string source_url = 3;
+  google.protobuf.Timestamp published_at = 4;
+  string market_question = 5;
+  string market_url = 6;
+  string why_it_matters = 7;
+  double score = 8;
+  repeated string matched_keywords = 9;
+  string market_venue = 10;
+  double market_volume_24h = 11;
+  string market_status = 12;
+  MatchType rule_match_type = 13;
+  MatchType final_match_type = 14;
+  string thesis = 15;
+  Stage ai_judgment = 16;
+  string failure_reason = 17;
+  string link_state_label = 18;
+}

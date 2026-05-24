@@ -7,25 +7,25 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	flightv1 "github.com/index/stint/backend/gen/api/flight/v1"
+	diagnosticsv1 "github.com/index/stint/backend/gen/api/diagnostics/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-type FlightService struct {
+type DiagnosticsService struct {
 	startedAt time.Time
 }
 
-func NewFlightService() *FlightService {
-	return &FlightService{
+func NewDiagnosticsService() *DiagnosticsService {
+	return &DiagnosticsService{
 		startedAt: time.Now(),
 	}
 }
 
-func (s *FlightService) Probe(
+func (s *DiagnosticsService) Probe(
 	_ context.Context,
-	req *connect.Request[flightv1.ProbeRequest],
-) (*connect.Response[flightv1.ProbeResponse], error) {
-	response := &flightv1.ProbeResponse{
+	req *connect.Request[diagnosticsv1.ProbeRequest],
+) (*connect.Response[diagnosticsv1.ProbeResponse], error) {
+	response := &diagnosticsv1.ProbeResponse{
 		ClientSentAt:       req.Msg.GetClientSentAt(),
 		ServerProcessedAt:  timestamppb.Now(),
 		CpuPercent:         s.cpuPercent(),
@@ -36,7 +36,7 @@ func (s *FlightService) Probe(
 	return connect.NewResponse(response), nil
 }
 
-func (s *FlightService) cpuPercent() float32 {
+func (s *DiagnosticsService) cpuPercent() float32 {
 	var usage syscall.Rusage
 	err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage)
 	if err != nil {

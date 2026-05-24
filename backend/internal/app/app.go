@@ -3,10 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
-	flightv1connect "github.com/index/stint/backend/gen/api/flight/v1/flightv1connect"
+	diagnosticsv1connect "github.com/index/stint/backend/gen/api/diagnostics/v1/diagnosticsv1connect"
+	signalsv1connect "github.com/index/stint/backend/gen/api/signals/v1/signalsv1connect"
 	"github.com/index/stint/backend/internal/config"
 )
 
@@ -15,22 +17,31 @@ type Server struct {
 	httpServer *http.Server
 }
 
-func NewServer(cfg config.Config) *Server {
+func NewServer(cfg config.Config) (*Server, error) {
 	mux := http.NewServeMux()
-	flightService := NewFlightService()
-	path, handler := flightv1connect.NewFlightServiceHandler(flightService)
-	mux.Handle(path, withCORS(handler))
+
+	diagnosticsService := NewDiagnosticsService()
+	diagnosticsPath, diagnosticsHandler := diagnosticsv1connect.NewDiagnosticsServiceHandler(diagnosticsService)
+	mux.Handle(diagnosticsPath, withCORS(diagnosticsHandler))
+
+	judge, judgeErr := newSignalJudge(cfg.AI)
+	if judgeErr != nil {
+		log.Printf("ai judge unavailable: %v", judgeErr)
+	}
+	signalService := NewSignalService(cfg.AI, judge, judgeErr, cfg.SignalsCacheTTL)
+	signalsPath, signalsHandler := signalsv1connect.NewSignalsServiceHandler(signalService)
+	mux.Handle(signalsPath, withCORS(signalsHandler))
 
 	httpServer := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           mux,
+		Handler:           withRequestLogging(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	return &Server{
 		cfg:        cfg,
 		httpServer: httpServer,
-	}
+	}, nil
 }
 
 func (s *Server) Run() error {
@@ -64,5 +75,34 @@ func withCORS(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(status int) {
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *statusRecorder) Flush() {
+	if flusher, ok := r.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (r *statusRecorder) Unwrap() http.ResponseWriter {
+	return r.ResponseWriter
+}
+
+func withRequestLogging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		startedAt := time.Now()
+		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(recorder, r)
+		log.Printf("http %s %s status=%d duration=%s", r.Method, r.URL.Path, recorder.status, time.Since(startedAt).Round(time.Millisecond))
 	})
 }

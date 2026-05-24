@@ -211,7 +211,7 @@ const HomeRoute = () => {
           <p class="max-w-3xl opacity-85">
             Ingest cross-market events, map them to live contracts, rank what
             matters, and deliver operator-ready theses through premium USDC
-            access.
+            access. With a performance & value oriented stack.
           </p>
           <div class="flex flex-wrap gap-2">
             <For each={coreTech}>

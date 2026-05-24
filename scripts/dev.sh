@@ -1,6 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd -- "$script_dir/.." && pwd)"
+
+load_env_file() {
+  local env_file="$1"
+  local line=""
+  local key=""
+  local value=""
+
+  [[ -f "$env_file" ]] || return 0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+    line="${line#export }"
+    key="${line%%=*}"
+    value="${line#*=}"
+
+    if [[ "$key" == "$line" ]]; then
+      continue
+    fi
+
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+
+    if [[ -z "$key" || -n "${!key+x}" ]]; then
+      continue
+    fi
+
+    if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
+      value="${value:1:-1}"
+    fi
+
+    export "$key=$value"
+  done < "$env_file"
+}
+
+load_env_file "$repo_root/.env"
+load_env_file "$repo_root/.env.local"
+
 backend_addr="${1:-:8080}"
 frontend_port="${2:-3000}"
 backend_port="${backend_addr#:}"

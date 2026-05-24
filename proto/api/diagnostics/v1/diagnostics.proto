@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package api.diagnostics.v1;
+
+option go_package = "github.com/index/stint/backend/gen/api/diagnostics/v1;diagnosticsv1";
+
+import "google/protobuf/timestamp.proto";
+
+service DiagnosticsService {
+  rpc Probe(ProbeRequest) returns (ProbeResponse);
+}
+
+message ProbeRequest {
+  google.protobuf.Timestamp client_sent_at = 1;
+}
+
+message ProbeResponse {
+  google.protobuf.Timestamp client_sent_at = 1;
+  google.protobuf.Timestamp server_processed_at = 2;
+  float cpu_percent = 3;
+  uint64 backend_memory_bytes = 4;
+  uint64 uptime_seconds = 5;
+}

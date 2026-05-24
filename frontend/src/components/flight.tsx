@@ -1,24 +1,7 @@
 import { animate, utils } from "animejs"
-import { createClient } from "@connectrpc/connect"
-import { createConnectTransport } from "@connectrpc/connect-web"
 import { batch, onCleanup, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { FlightService } from "~/api/flight/v1/flight_pb"
-
-const getApiBaseUrl = (): string => {
-  const envBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
-  if (envBaseUrl) return envBaseUrl
-  if (!import.meta.env.SSR && typeof window !== "undefined") {
-    if (import.meta.env.DEV) {
-      return `${window.location.protocol}//${window.location.hostname}:8080`
-    }
-    return window.location.origin
-  }
-  return "http://127.0.0.1:8080"
-}
-
-const transport = createConnectTransport({ baseUrl: getApiBaseUrl() })
-const client = createClient(FlightService, transport)
+import { diagnosticsClient } from "~/lib/rpc"
 
 const getFrontendMemoryBytes = (): number | null => {
   const performanceWithMemory = performance as Performance & {
@@ -83,7 +66,7 @@ export const FlightDiagnostics = () => {
     const now = Date.now()
 
     try {
-      const response = await client.probe({
+      const response = await diagnosticsClient.probe({
         clientSentAt: {
           seconds: BigInt(Math.floor(now / 1000)),
           nanos: (now % 1000) * 1e6,
