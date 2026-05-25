@@ -1,4 +1,4 @@
-package app
+package signals
 
 import (
 	"bytes"
@@ -11,11 +11,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/index/stint/backend/internal/config"
-	"github.com/invopop/jsonschema"
+	"github.com/index/edge/backend/internal/config"
 	openai "github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
-	"github.com/openai/openai-go/v3/responses"
 	"github.com/openai/openai-go/v3/shared"
 )
 
@@ -29,11 +27,8 @@ type SignalJudge interface {
 }
 
 type openAIJudge struct {
-	client             openai.Client
-	chatCompletionPath bool
-	schema             map[string]any
-	model              string
-	reasoning          shared.ReasoningParam
+	client openai.Client
+	model  string
 }
 
 type aiSignalInput struct {
@@ -62,15 +57,18 @@ type aiSignalResponse struct {
 	Signals []aiSignalOutput `json:"signals" jsonschema_description:"judged candidate signals"`
 }
 
-func newSignalJudge(cfg config.AIConfig) (SignalJudge, error) {
+func NewSignalJudge(cfg config.AIConfig) (SignalJudge, error) {
 	if cfg.AuthMode == "disabled" {
 		return nil, nil
 	}
+	if cfg.AuthMode != "api-key" {
+		return nil, aiConfigErrorf("unsupported EDGE_AI_AUTH_MODE: %s", cfg.AuthMode)
+	}
 	if cfg.Model == "" {
-		if cfg.AuthMode == "api-key" {
-			return nil, aiConfigErrorf("STINT_AI_API_MODEL missing for api-key mode")
-		}
-		return nil, aiConfigErrorf("STINT_AI_MODEL missing for %s mode", cfg.AuthMode)
+		return nil, aiConfigErrorf("EDGE_AI_MODEL missing for api-key mode")
+	}
+	if cfg.APIKey == "" {
+		return nil, aiConfigErrorf("EDGE_AI_API_KEY missing for api-key mode")
 	}
 
 	transport := http.DefaultTransport
@@ -82,6 +80,7 @@ func newSignalJudge(cfg config.AIConfig) (SignalJudge, error) {
 		option.WithBaseURL(cfg.BaseURL),
 		option.WithHTTPClient(httpClient),
 		option.WithRequestTimeout(cfg.Timeout),
+		option.WithAPIKey(cfg.APIKey),
 	}
 	if cfg.Organization != "" {
 		options = append(options, option.WithOrganization(cfg.Organization))
@@ -90,40 +89,10 @@ func newSignalJudge(cfg config.AIConfig) (SignalJudge, error) {
 		options = append(options, option.WithProject(cfg.Project))
 	}
 
-	switch cfg.AuthMode {
-	case "api-key":
-		if cfg.APIKey == "" {
-			return nil, aiConfigErrorf("STINT_AI_API_KEY missing for api-key mode")
-		}
-		options = append(options, option.WithAPIKey(cfg.APIKey))
-	case "openai-oauth":
-		tokenSource := newOpenAIOAuthTokenSource(cfg)
-		options = append(options, option.WithMiddleware(func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
-			token, err := tokenSource.accessToken(req.Context())
-			if err != nil {
-				return nil, err
-			}
-			req.Header.Set("Authorization", "Bearer "+token)
-			return next(req)
-		}))
-	default:
-		return nil, aiConfigErrorf("unsupported STINT_AI_AUTH_MODE: %s", cfg.AuthMode)
-	}
-
-	judge := &openAIJudge{
+	return &openAIJudge{
 		client: openai.NewClient(options...),
-		schema: generateResponseSchema[aiSignalResponse](),
 		model:  cfg.Model,
-	}
-	if cfg.AuthMode == "api-key" {
-		judge.chatCompletionPath = true
-	}
-	if cfg.ReasoningEffort != "" {
-		judge.reasoning = shared.ReasoningParam{
-			Effort: shared.ReasoningEffort(cfg.ReasoningEffort),
-		}
-	}
-	return judge, nil
+	}, nil
 }
 
 func (j *openAIJudge) JudgeSignals(ctx context.Context, inputs []aiSignalInput) (map[int]aiSignalOutput, error) {
@@ -149,71 +118,35 @@ func (j *openAIJudge) JudgeSignals(ctx context.Context, inputs []aiSignalInput) 
 		"Use match_type no-match when no usable market exists.",
 	}, " ")
 
-	if j.chatCompletionPath {
-		response, err := j.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
-			Model: shared.ChatModel(j.model),
-			Messages: []openai.ChatCompletionMessageParamUnion{
-				{
-					OfSystem: &openai.ChatCompletionSystemMessageParam{
-						Content: openai.ChatCompletionSystemMessageParamContentUnion{OfString: openai.String(instructions)},
-					},
-				},
-				{
-					OfUser: &openai.ChatCompletionUserMessageParam{
-						Content: openai.ChatCompletionUserMessageParamContentUnion{OfString: openai.String("Candidates:\n" + string(payload))},
-					},
+	response, err := j.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
+		Model: shared.ChatModel(j.model),
+		Messages: []openai.ChatCompletionMessageParamUnion{
+			{
+				OfSystem: &openai.ChatCompletionSystemMessageParam{
+					Content: openai.ChatCompletionSystemMessageParamContentUnion{OfString: openai.String(instructions)},
 				},
 			},
-			ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{
-				OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
+			{
+				OfUser: &openai.ChatCompletionUserMessageParam{
+					Content: openai.ChatCompletionUserMessageParamContentUnion{OfString: openai.String("Candidates:\n" + string(payload))},
+				},
 			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		if len(response.Choices) == 0 {
-			return nil, aiInvalidResponseErrorf("empty chat completion choices")
-		}
-		var parsed aiSignalResponse
-		if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &parsed); err != nil {
-			return nil, aiInvalidResponseErrorf("decode chat completion body: %v", err)
-		}
-		return buildJudgments(parsed, len(inputs))
-	}
-
-	response, err := j.client.Responses.New(ctx, responses.ResponseNewParams{
-		Model:        shared.ResponsesModel(j.model),
-		Instructions: openai.String(instructions),
-		Input: responses.ResponseNewParamsInputUnion{
-			OfString: openai.String("Candidates:\n" + string(payload)),
 		},
-		Text: responses.ResponseTextConfigParam{
-			Format: responses.ResponseFormatTextConfigParamOfJSONSchema("signal_judgment", j.schema),
+		ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{
+			OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
 		},
-		Reasoning: j.reasoning,
 	})
 	if err != nil {
 		return nil, err
 	}
-
+	if len(response.Choices) == 0 {
+		return nil, aiInvalidResponseErrorf("empty chat completion choices")
+	}
 	var parsed aiSignalResponse
-	if err := json.Unmarshal([]byte(response.OutputText()), &parsed); err != nil {
-		return nil, aiInvalidResponseErrorf("decode responses output: %v", err)
+	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &parsed); err != nil {
+		return nil, aiInvalidResponseErrorf("decode chat completion body: %v", err)
 	}
 	return buildJudgments(parsed, len(inputs))
-}
-
-func generateResponseSchema[T any]() map[string]any {
-	reflector := jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
-	var value T
-	schema := reflector.Reflect(value)
-	body, _ := json.Marshal(schema)
-	var output map[string]any
-	_ = json.Unmarshal(body, &output)
-	return output
 }
 
 func clampFloat(value float64, minValue float64, maxValue float64) float64 {

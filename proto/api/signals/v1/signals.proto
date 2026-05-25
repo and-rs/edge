@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package api.signals.v1;
 
-option go_package = "github.com/index/stint/backend/gen/api/signals/v1;signalsv1";
+option go_package = "github.com/index/edge/backend/gen/api/signals/v1;signalsv1";
 
 import "google/protobuf/timestamp.proto";
 

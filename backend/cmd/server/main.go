@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/index/stint/backend/internal/app"
-	"github.com/index/stint/backend/internal/config"
+	"github.com/index/edge/backend/internal/app"
+	"github.com/index/edge/backend/internal/config"
 )
 
 func main() {

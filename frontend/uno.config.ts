@@ -77,6 +77,14 @@ export default defineConfig({
             -webkit-font-smoothing: antialiased;
             transition: background-color 0.3s ease, color 0.3s ease;
           }
+          @keyframes signal-reveal {
+            from { opacity: 0; transform: translateY(10px) scale(0.98); filter: blur(6px); }
+            to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          }
+          @keyframes signal-pulse {
+            0%, 100% { opacity: 0.58; transform: translateY(0); }
+            50% { opacity: 1; transform: translateY(-2px); }
+          }
         `
 
         // Generate from base tags

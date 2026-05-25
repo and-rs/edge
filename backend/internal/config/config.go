@@ -2,7 +2,6 @@ package config
 
 import (
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,55 +14,34 @@ type Config struct {
 }
 
 type AIConfig struct {
-	AuthMode         string
-	BaseURL          string
-	Model            string
-	ReasoningEffort  string
-	APIKey           string
-	Organization     string
-	Project          string
-	OAuthProfilePath string
-	Timeout          time.Duration
-	DebugLogging     bool
+	AuthMode     string
+	BaseURL      string
+	Model        string
+	APIKey       string
+	Organization string
+	Project      string
+	Timeout      time.Duration
+	DebugLogging bool
 }
 
 func Load() Config {
-	addr := envString("STINT_ADDR", ":8080")
-	aiBaseURL := strings.TrimRight(envString("STINT_AI_BASE_URL", "https://api.openai.com/v1"), "/")
-	timeoutSeconds := envPositiveInt("STINT_AI_TIMEOUT_SECONDS", 20)
-	cacheSeconds := envPositiveInt("STINT_SIGNALS_CACHE_SECONDS", 20)
-	oauthProfilePath := os.Getenv("STINT_AI_OAUTH_PROFILE")
-	if oauthProfilePath == "" {
-		configDir, err := os.UserConfigDir()
-		if err == nil {
-			oauthProfilePath = filepath.Join(configDir, "iridium-edge", "openai-oauth.json")
-		} else {
-			oauthProfilePath = filepath.Join(".", ".openai-oauth.json")
-		}
-	}
-
-	authMode := envString("STINT_AI_AUTH_MODE", "api-key")
-	model := os.Getenv("STINT_AI_MODEL")
-	if authMode == "api-key" {
-		if apiModel := os.Getenv("STINT_AI_API_MODEL"); apiModel != "" {
-			model = apiModel
-		}
-	}
+	addr := envString("EDGE_ADDR", ":8080")
+	aiBaseURL := strings.TrimRight(envString("EDGE_AI_BASE_URL", "https://api.openai.com/v1"), "/")
+	timeoutSeconds := envPositiveInt("EDGE_AI_TIMEOUT_SECONDS", 20)
+	cacheSeconds := envPositiveInt("EDGE_SIGNALS_CACHE_SECONDS", 20)
 
 	return Config{
 		Addr:            addr,
 		SignalsCacheTTL: time.Duration(cacheSeconds) * time.Second,
 		AI: AIConfig{
-			AuthMode:         authMode,
-			BaseURL:          aiBaseURL,
-			Model:            model,
-			ReasoningEffort:  os.Getenv("STINT_AI_REASONING_EFFORT"),
-			APIKey:           os.Getenv("STINT_AI_API_KEY"),
-			Organization:     os.Getenv("STINT_AI_ORG_ID"),
-			Project:          os.Getenv("STINT_AI_PROJECT_ID"),
-			OAuthProfilePath: oauthProfilePath,
-			Timeout:          time.Duration(timeoutSeconds) * time.Second,
-			DebugLogging:     envBool("STINT_DEBUG_AI", false),
+			AuthMode:     envString("EDGE_AI_AUTH_MODE", "api-key"),
+			BaseURL:      aiBaseURL,
+			Model:        os.Getenv("EDGE_AI_MODEL"),
+			APIKey:       os.Getenv("EDGE_AI_API_KEY"),
+			Organization: os.Getenv("EDGE_AI_ORG_ID"),
+			Project:      os.Getenv("EDGE_AI_PROJECT_ID"),
+			Timeout:      time.Duration(timeoutSeconds) * time.Second,
+			DebugLogging: envBool("EDGE_DEBUG_AI", false),
 		},
 	}
 }

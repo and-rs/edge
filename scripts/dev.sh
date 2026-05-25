@@ -72,12 +72,12 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-backend_bin="$(mktemp -t stint-backend)"
+backend_bin="$(mktemp -t edge-backend)"
 rm "$backend_bin"
 (
   cd backend
   go build -o "$backend_bin" ./cmd/server
-  exec env STINT_ADDR="$backend_addr" "$backend_bin"
+  exec env EDGE_ADDR="$backend_addr" "$backend_bin"
 ) &
 backend_pid=$!
 

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "stint",
+      "name": "edge",
       "devDependencies": {
         "@j178/prek": "^0.3.2",
         "rust-just": "^1.46.0",

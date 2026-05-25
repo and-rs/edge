@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	diagnosticsv1connect "github.com/index/stint/backend/gen/api/diagnostics/v1/diagnosticsv1connect"
-	signalsv1connect "github.com/index/stint/backend/gen/api/signals/v1/signalsv1connect"
-	"github.com/index/stint/backend/internal/config"
+	diagnosticsv1connect "github.com/index/edge/backend/gen/api/diagnostics/v1/diagnosticsv1connect"
+	signalsv1connect "github.com/index/edge/backend/gen/api/signals/v1/signalsv1connect"
+	"github.com/index/edge/backend/internal/app/signals"
+	"github.com/index/edge/backend/internal/config"
 )
 
 type Server struct {
@@ -24,11 +25,11 @@ func NewServer(cfg config.Config) (*Server, error) {
 	diagnosticsPath, diagnosticsHandler := diagnosticsv1connect.NewDiagnosticsServiceHandler(diagnosticsService)
 	mux.Handle(diagnosticsPath, withCORS(diagnosticsHandler))
 
-	judge, judgeErr := newSignalJudge(cfg.AI)
+	judge, judgeErr := signals.NewSignalJudge(cfg.AI)
 	if judgeErr != nil {
 		log.Printf("ai judge unavailable: %v", judgeErr)
 	}
-	signalService := NewSignalService(cfg.AI, judge, judgeErr, cfg.SignalsCacheTTL)
+	signalService := signals.NewService(cfg.AI, judge, judgeErr, cfg.SignalsCacheTTL)
 	signalsPath, signalsHandler := signalsv1connect.NewSignalsServiceHandler(signalService)
 	mux.Handle(signalsPath, withCORS(signalsHandler))
 
@@ -45,7 +46,7 @@ func NewServer(cfg config.Config) (*Server, error) {
 }
 
 func (s *Server) Run() error {
-	fmt.Printf("stint backend listening on %s\n", s.cfg.Addr)
+	fmt.Printf("edge backend listening on %s\n", s.cfg.Addr)
 	return s.httpServer.ListenAndServe()
 }
 

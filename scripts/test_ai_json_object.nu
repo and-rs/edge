@@ -9,7 +9,7 @@ open .env
 | load-env
 
 let body = {
-  model: $env.STINT_AI_API_MODEL
+  model: $env.EDGE_AI_MODEL
   messages: [
     {
       role: "system"
@@ -55,8 +55,8 @@ let body = {
   --show-error
   --location
   --request POST
-  --url $"($env.STINT_AI_BASE_URL)/chat/completions"
-  --header $"Authorization: Bearer ($env.STINT_AI_API_KEY)"
+  --url $"($env.EDGE_AI_BASE_URL)/chat/completions"
+  --header $"Authorization: Bearer ($env.EDGE_AI_API_KEY)"
   --header "Content-Type: application/json"
   --data $body
 )

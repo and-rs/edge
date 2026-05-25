@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	diagnosticsv1 "github.com/index/stint/backend/gen/api/diagnostics/v1"
+	diagnosticsv1 "github.com/index/edge/backend/gen/api/diagnostics/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
