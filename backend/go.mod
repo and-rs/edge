@@ -4,14 +4,6 @@ go 1.25.0
 
 require (
 	connectrpc.com/connect v1.20.0
-	github.com/openai/openai-go/v3 v3.37.0
 	golang.org/x/sync v0.20.0
 	google.golang.org/protobuf v1.36.11
-)
-
-require (
-	github.com/tidwall/gjson v1.18.0 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
-	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 )

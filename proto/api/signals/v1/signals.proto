@@ -4,41 +4,39 @@ package api.signals.v1;
 
 option go_package = "github.com/index/edge/backend/gen/api/signals/v1;signalsv1";
 
+import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
 service SignalsService {
-  rpc ListSignals(ListSignalsRequest) returns (ListSignalsResponse);
-  rpc StreamSignals(ListSignalsRequest) returns (stream SignalUpdate);
+  rpc StreamSignals(google.protobuf.Empty) returns (stream SignalHuntEvent);
 }
 
-message ListSignalsRequest {}
-
-message ListSignalsResponse {
+message SignalHuntState {
   repeated Signal signals = 1;
-  Stage event_ingest = 2;
-  Stage market_ingest = 3;
-  Stage ai_judgment = 4;
-  string summary = 5;
-  string failure_reason = 6;
+  PipelineStages stages = 2;
+  SignalHuntSummary summary = 3;
 }
 
-message SignalUpdate {
-  SignalUpdateType type = 1;
-  Stage event_ingest = 2;
-  Stage market_ingest = 3;
-  Stage ai_judgment = 4;
-  Signal signal = 5;
-  string summary = 6;
-  string failure_reason = 7;
-  bool done = 8;
+message SignalHuntEvent {
+  oneof event {
+    PipelineStages stages = 1;
+    Signal signal = 2;
+    SignalHuntSummary summary = 3;
+    SignalHuntDone done = 4;
+  }
 }
 
-enum SignalUpdateType {
-  SIGNAL_UPDATE_TYPE_UNSPECIFIED = 0;
-  SIGNAL_UPDATE_TYPE_STAGE = 1;
-  SIGNAL_UPDATE_TYPE_SIGNAL = 2;
-  SIGNAL_UPDATE_TYPE_SUMMARY = 3;
-  SIGNAL_UPDATE_TYPE_DONE = 4;
+message SignalHuntDone {}
+
+message PipelineStages {
+  Stage event_ingest = 1;
+  Stage market_ingest = 2;
+  Stage ai_judgment = 3;
+}
+
+message SignalHuntSummary {
+  string text = 1;
+  string failure_reason = 2;
 }
 
 message Stage {
@@ -75,14 +73,10 @@ message Signal {
   string market_url = 6;
   string why_it_matters = 7;
   double score = 8;
-  repeated string matched_keywords = 9;
-  string market_venue = 10;
-  double market_volume_24h = 11;
-  string market_status = 12;
-  MatchType rule_match_type = 13;
-  MatchType final_match_type = 14;
-  string thesis = 15;
-  Stage ai_judgment = 16;
-  string failure_reason = 17;
-  string link_state_label = 18;
+  string market_venue = 9;
+  double market_volume_24h = 10;
+  string market_status = 11;
+  MatchType final_match_type = 12;
+  Stage ai_judgment = 13;
+  string link_state_label = 14;
 }

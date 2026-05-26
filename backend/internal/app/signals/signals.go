@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"connectrpc.com/connect"
 	signalsv1 "github.com/index/edge/backend/gen/api/signals/v1"
 	"github.com/index/edge/backend/internal/config"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type SignalService struct {
@@ -24,7 +23,7 @@ type SignalService struct {
 	marketClient   *http.Client
 	cacheTTL       time.Duration
 	mu             sync.RWMutex
-	cachedResponse *signalsv1.ListSignalsResponse
+	cachedState    *signalsv1.SignalHuntState
 	cacheExpiresAt time.Time
 }
 
@@ -47,124 +46,35 @@ func NewService(aiConfig config.AIConfig, judge SignalJudge, judgeInitErr error,
 	}
 }
 
-func (s *SignalService) ListSignals(
-	ctx context.Context,
-	_ *connect.Request[signalsv1.ListSignalsRequest],
-) (*connect.Response[signalsv1.ListSignalsResponse], error) {
-	if cached := s.cached(); cached != nil {
-		return connect.NewResponse(cached), nil
-	}
-
-	response := s.buildResponse(ctx)
-	s.store(response)
-	return connect.NewResponse(cloneSignalsResponse(response)), nil
-}
-
-func (s *SignalService) cached() *signalsv1.ListSignalsResponse {
+func (s *SignalService) cached() *signalsv1.SignalHuntState {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	if s.cachedResponse == nil || time.Now().After(s.cacheExpiresAt) {
+	if s.cachedState == nil || time.Now().After(s.cacheExpiresAt) {
 		return nil
 	}
-	return cloneSignalsResponse(s.cachedResponse)
+	return cloneSignalHuntState(s.cachedState)
 }
 
-func (s *SignalService) store(response *signalsv1.ListSignalsResponse) {
+func (s *SignalService) store(state *signalsv1.SignalHuntState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.cachedResponse = cloneSignalsResponse(response)
+	s.cachedState = cloneSignalHuntState(state)
 	s.cacheExpiresAt = time.Now().Add(s.cacheTTL)
 }
 
-func cloneSignalsResponse(response *signalsv1.ListSignalsResponse) *signalsv1.ListSignalsResponse {
-	if response == nil {
+func cloneSignalHuntState(state *signalsv1.SignalHuntState) *signalsv1.SignalHuntState {
+	if state == nil {
 		return nil
 	}
-	return proto.Clone(response).(*signalsv1.ListSignalsResponse)
-}
-
-func (s *SignalService) buildResponse(ctx context.Context) *signalsv1.ListSignalsResponse {
-	var (
-		newsSignals []newsSignal
-		markets     []kalshiMarket
-		newsErr     error
-		marketsErr  error
-	)
-
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.Go(func() error {
-		newsSignals, newsErr = s.fetchCoinDeskSignals(groupCtx)
-		return nil
-	})
-	group.Go(func() error {
-		markets, marketsErr = s.fetchKalshiMarkets(groupCtx)
-		return nil
-	})
-	_ = group.Wait()
-
-	eventStage := buildIngestStage("CoinDesk ingest", newsErr, len(newsSignals), "events")
-	marketStage := buildIngestStage("Kalshi ingest", marketsErr, len(markets), "markets")
-	aiStage := s.aiSetupStage()
-
-	candidates := make([]signalCandidate, 0, len(newsSignals))
-	for _, signal := range newsSignals {
-		candidates = append(candidates, signalCandidate{
-			Signal: signal,
-			Match:  matchSignalToMarket(signal, markets),
-		})
-	}
-
-	sort.Slice(candidates, func(i int, j int) bool {
-		return candidates[i].Match.Score > candidates[j].Match.Score
-	})
-	if len(candidates) > 10 {
-		candidates = candidates[:10]
-	}
-
-	judgments := map[int]aiSignalOutput{}
-	if len(candidates) == 0 {
-		aiStage = newStage(
-			signalsv1.StageStatus_STAGE_STATUS_SKIPPED,
-			"AI judgment skipped",
-			"No candidate events available for scoring.",
-		)
-	} else if s.judge != nil {
-		var err error
-		judgments, err = s.judge.JudgeSignals(ctx, buildAIInputs(candidates))
-		if err != nil {
-			aiStage = classifyStageError("AI judgment", err)
-			judgments = map[int]aiSignalOutput{}
-		} else {
-			aiStage = newStage(
-				signalsv1.StageStatus_STAGE_STATUS_READY,
-				"AI judgment ready",
-				fmt.Sprintf("Scored %d candidates.", len(judgments)),
-			)
-		}
-	}
-
-	responseSignals := buildResponseSignals(candidates, judgments, aiStage)
-
-	sort.Slice(responseSignals, func(i int, j int) bool {
-		return responseSignals[i].Score > responseSignals[j].Score
-	})
-
-	return &signalsv1.ListSignalsResponse{
-		Signals:       responseSignals,
-		EventIngest:   eventStage,
-		MarketIngest:  marketStage,
-		AiJudgment:    aiStage,
-		Summary:       buildPipelineSummary(len(newsSignals), responseSignals, eventStage, marketStage, aiStage),
-		FailureReason: strings.Join(collectFailureDetails(eventStage, marketStage, aiStage), " | "),
-	}
+	return proto.Clone(state).(*signalsv1.SignalHuntState)
 }
 
 func (s *SignalService) StreamSignals(
 	ctx context.Context,
-	_ *connect.Request[signalsv1.ListSignalsRequest],
-	stream *connect.ServerStream[signalsv1.SignalUpdate],
+	_ *connect.Request[emptypb.Empty],
+	stream *connect.ServerStream[signalsv1.SignalHuntEvent],
 ) error {
 	if cached := s.cached(); cached != nil {
 		return streamCachedSignals(cached, stream)
@@ -195,19 +105,13 @@ func (s *SignalService) StreamSignals(
 		case result := <-newsCh:
 			newsSignals = result.signals
 			eventStage = buildIngestStage("CoinDesk ingest", result.err, len(newsSignals), "events")
-			if err := stream.Send(&signalsv1.SignalUpdate{
-				Type:        signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_STAGE,
-				EventIngest: eventStage,
-			}); err != nil {
+			if err := sendStages(stream, buildPipelineStages(eventStage, marketStage, nil)); err != nil {
 				return err
 			}
 		case result := <-marketsCh:
 			markets = result.markets
 			marketStage = buildIngestStage("Kalshi ingest", result.err, len(markets), "markets")
-			if err := stream.Send(&signalsv1.SignalUpdate{
-				Type:         signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_STAGE,
-				MarketIngest: marketStage,
-			}); err != nil {
+			if err := sendStages(stream, buildPipelineStages(eventStage, marketStage, nil)); err != nil {
 				return err
 			}
 		}
@@ -230,8 +134,8 @@ func (s *SignalService) StreamSignals(
 	sort.Slice(candidates, func(i int, j int) bool {
 		return candidates[i].Match.Score > candidates[j].Match.Score
 	})
-	if len(candidates) > 10 {
-		candidates = candidates[:10]
+	if len(candidates) > freeScanSignalLimit {
+		candidates = candidates[:freeScanSignalLimit]
 	}
 
 	aiStage := s.aiSetupStage()
@@ -248,19 +152,13 @@ func (s *SignalService) StreamSignals(
 			fmt.Sprintf("Scoring %d candidates.", len(candidates)),
 		)
 	}
-	if err := stream.Send(&signalsv1.SignalUpdate{
-		Type:       signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_STAGE,
-		AiJudgment: aiStage,
-	}); err != nil {
+	if err := sendStages(stream, buildPipelineStages(eventStage, marketStage, aiStage)); err != nil {
 		return err
 	}
 
 	ruleSignals := buildResponseSignals(candidates, map[int]aiSignalOutput{}, aiStage)
 	for _, signal := range ruleSignals {
-		if err := stream.Send(&signalsv1.SignalUpdate{
-			Type:   signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_SIGNAL,
-			Signal: signal,
-		}); err != nil {
+		if err := sendSignal(stream, signal); err != nil {
 			return err
 		}
 	}
@@ -279,73 +177,66 @@ func (s *SignalService) StreamSignals(
 				fmt.Sprintf("Scored %d candidates.", len(judgments)),
 			)
 		}
-		if err := stream.Send(&signalsv1.SignalUpdate{
-			Type:       signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_STAGE,
-			AiJudgment: aiStage,
-		}); err != nil {
+		if err := sendStages(stream, buildPipelineStages(eventStage, marketStage, aiStage)); err != nil {
 			return err
 		}
 	}
 
 	responseSignals := buildResponseSignals(candidates, judgments, aiStage)
 	for _, signal := range responseSignals {
-		if err := stream.Send(&signalsv1.SignalUpdate{
-			Type:   signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_SIGNAL,
-			Signal: signal,
-		}); err != nil {
+		if err := sendSignal(stream, signal); err != nil {
 			return err
 		}
 	}
 
-	response := &signalsv1.ListSignalsResponse{
-		Signals:       responseSignals,
-		EventIngest:   eventStage,
-		MarketIngest:  marketStage,
-		AiJudgment:    aiStage,
-		Summary:       buildPipelineSummary(len(newsSignals), responseSignals, eventStage, marketStage, aiStage),
-		FailureReason: strings.Join(collectFailureDetails(eventStage, marketStage, aiStage), " | "),
+	state := &signalsv1.SignalHuntState{
+		Signals: responseSignals,
+		Stages:  buildPipelineStages(eventStage, marketStage, aiStage),
+		Summary: buildSignalHuntSummary(len(newsSignals), responseSignals, eventStage, marketStage, aiStage),
 	}
-	s.store(response)
+	s.store(state)
 
-	if err := stream.Send(&signalsv1.SignalUpdate{
-		Type:          signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_SUMMARY,
-		Summary:       response.Summary,
-		FailureReason: response.FailureReason,
-	}); err != nil {
+	if err := sendSummary(stream, state.Summary); err != nil {
 		return err
 	}
-	return stream.Send(&signalsv1.SignalUpdate{
-		Type: signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_DONE,
-		Done: true,
+	return sendDone(stream)
+}
+
+func sendStages(stream *connect.ServerStream[signalsv1.SignalHuntEvent], stages *signalsv1.PipelineStages) error {
+	return stream.Send(&signalsv1.SignalHuntEvent{
+		Event: &signalsv1.SignalHuntEvent_Stages{Stages: stages},
 	})
 }
 
-func streamCachedSignals(response *signalsv1.ListSignalsResponse, stream *connect.ServerStream[signalsv1.SignalUpdate]) error {
-	if err := stream.Send(&signalsv1.SignalUpdate{
-		Type:         signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_STAGE,
-		EventIngest:  response.EventIngest,
-		MarketIngest: response.MarketIngest,
-		AiJudgment:   response.AiJudgment,
-	}); err != nil {
+func sendSignal(stream *connect.ServerStream[signalsv1.SignalHuntEvent], signal *signalsv1.Signal) error {
+	return stream.Send(&signalsv1.SignalHuntEvent{
+		Event: &signalsv1.SignalHuntEvent_Signal{Signal: signal},
+	})
+}
+
+func sendSummary(stream *connect.ServerStream[signalsv1.SignalHuntEvent], summary *signalsv1.SignalHuntSummary) error {
+	return stream.Send(&signalsv1.SignalHuntEvent{
+		Event: &signalsv1.SignalHuntEvent_Summary{Summary: summary},
+	})
+}
+
+func sendDone(stream *connect.ServerStream[signalsv1.SignalHuntEvent]) error {
+	return stream.Send(&signalsv1.SignalHuntEvent{
+		Event: &signalsv1.SignalHuntEvent_Done{Done: &signalsv1.SignalHuntDone{}},
+	})
+}
+
+func streamCachedSignals(state *signalsv1.SignalHuntState, stream *connect.ServerStream[signalsv1.SignalHuntEvent]) error {
+	if err := sendStages(stream, state.Stages); err != nil {
 		return err
 	}
-	for _, signal := range response.Signals {
-		if err := stream.Send(&signalsv1.SignalUpdate{
-			Type:   signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_SIGNAL,
-			Signal: signal,
-		}); err != nil {
+	for _, signal := range state.Signals {
+		if err := sendSignal(stream, signal); err != nil {
 			return err
 		}
 	}
-	if err := stream.Send(&signalsv1.SignalUpdate{
-		Type:          signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_SUMMARY,
-		Summary:       response.Summary,
-		FailureReason: response.FailureReason,
-	}); err != nil {
+	if err := sendSummary(stream, state.Summary); err != nil {
 		return err
 	}
-	return stream.Send(&signalsv1.SignalUpdate{
-		Type: signalsv1.SignalUpdateType_SIGNAL_UPDATE_TYPE_DONE,
-		Done: true,
-	})
+	return sendDone(stream)
 }

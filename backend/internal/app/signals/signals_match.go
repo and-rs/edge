@@ -2,7 +2,6 @@ package signals
 
 import (
 	"fmt"
-	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -35,7 +34,7 @@ func matchSignalToMarket(signal newsSignal, markets []kalshiMarket) marketMatch 
 
 		best = marketMatch{
 			Question:       market.Title,
-			URL:            buildKalshiMarketURL(market.Ticker),
+			URL:            buildKalshiMarketURL(market),
 			Venue:          "Kalshi",
 			Status:         market.Status,
 			Volume24h:      volume24h,
@@ -107,8 +106,33 @@ func intersectKeywords(left []string, right []string) []string {
 	return shared
 }
 
-func buildKalshiMarketURL(ticker string) string {
-	return "https://kalshi.com/markets/" + url.PathEscape(ticker)
+func buildKalshiMarketURL(market kalshiMarket) string {
+	seriesTicker := strings.ToLower(strings.SplitN(market.EventTicker, "-", 2)[0])
+	if seriesTicker == "" {
+		seriesTicker = strings.ToLower(strings.SplitN(market.Ticker, "-", 2)[0])
+	}
+	eventTicker := strings.ToLower(market.EventTicker)
+	if eventTicker == "" {
+		eventTicker = strings.ToLower(market.Ticker)
+	}
+	return "https://kalshi.com/markets/" + seriesTicker + "/" + slugifyKalshiTitle(market.Title) + "/" + eventTicker
+}
+
+func slugifyKalshiTitle(title string) string {
+	var builder strings.Builder
+	lastDash := false
+	for _, char := range strings.ToLower(title) {
+		if (char >= 'a' && char <= 'z') || (char >= '0' && char <= '9') {
+			builder.WriteRune(char)
+			lastDash = false
+			continue
+		}
+		if !lastDash && builder.Len() > 0 {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(builder.String(), "-")
 }
 
 func minFloat(left float64, right float64) float64 {

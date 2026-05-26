@@ -16,32 +16,22 @@ import (
 func buildResponseSignals(candidates []signalCandidate, judgments map[int]aiSignalOutput, aiStage *signalsv1.Stage) []*signalsv1.Signal {
 	responseSignals := make([]*signalsv1.Signal, 0, len(candidates))
 	for index, candidate := range candidates {
-		ruleMatchType := parseMatchType(candidate.Match.MatchType)
-		finalMatchType := ruleMatchType
-		whyItMatters := candidate.Match.Reason
-		thesis := candidate.Match.Reason
+		finalMatchType := parseMatchType(candidate.Match.MatchType)
+		whyItMatters := ""
 		score := candidate.Match.Score
 		signalAIStage := cloneStage(aiStage)
-		signalFailureReason := ""
 
 		if judgment, ok := judgments[index]; ok {
 			if judgment.WhyItMatters != "" {
 				whyItMatters = judgment.WhyItMatters
-			}
-			if judgment.Thesis != "" {
-				thesis = judgment.Thesis
-			} else {
-				thesis = whyItMatters
 			}
 			finalMatchType = parseMatchType(judgment.MatchType)
 			score = clampFloat(score+judgment.ScoreBoost, 0, 100)
 			signalAIStage = newStage(
 				signalsv1.StageStatus_STAGE_STATUS_READY,
 				"AI judged",
-				"Model returned thesis and score adjustment.",
+				"Model returned signal context and score adjustment.",
 			)
-		} else if aiStage != nil && aiStage.Status != signalsv1.StageStatus_STAGE_STATUS_READY && aiStage.Status != signalsv1.StageStatus_STAGE_STATUS_RUNNING {
-			signalFailureReason = aiStage.Detail
 		}
 
 		responseSignals = append(responseSignals, &signalsv1.Signal{
@@ -53,15 +43,11 @@ func buildResponseSignals(candidates []signalCandidate, judgments map[int]aiSign
 			MarketUrl:        candidate.Match.URL,
 			WhyItMatters:     whyItMatters,
 			Score:            score,
-			MatchedKeywords:  candidate.Match.SharedKeywords,
 			MarketVenue:      candidate.Match.Venue,
 			MarketVolume_24H: candidate.Match.Volume24h,
 			MarketStatus:     candidate.Match.Status,
-			RuleMatchType:    ruleMatchType,
 			FinalMatchType:   finalMatchType,
-			Thesis:           thesis,
 			AiJudgment:       signalAIStage,
-			FailureReason:    signalFailureReason,
 			LinkStateLabel:   buildLinkStateLabel(candidate.Signal.Source, finalMatchType),
 		})
 	}
@@ -70,6 +56,14 @@ func buildResponseSignals(candidates []signalCandidate, judgments map[int]aiSign
 		return responseSignals[i].Score > responseSignals[j].Score
 	})
 	return responseSignals
+}
+
+func buildPipelineStages(eventStage *signalsv1.Stage, marketStage *signalsv1.Stage, aiStage *signalsv1.Stage) *signalsv1.PipelineStages {
+	return &signalsv1.PipelineStages{
+		EventIngest:  cloneStage(eventStage),
+		MarketIngest: cloneStage(marketStage),
+		AiJudgment:   cloneStage(aiStage),
+	}
 }
 
 func buildIngestStage(name string, err error, count int, noun string) *signalsv1.Stage {
@@ -170,7 +164,14 @@ func collectFailureDetails(stages ...*signalsv1.Stage) []string {
 	return details
 }
 
-func buildPipelineSummary(totalEvents int, signals []*signalsv1.Signal, eventStage *signalsv1.Stage, marketStage *signalsv1.Stage, aiStage *signalsv1.Stage) string {
+func buildSignalHuntSummary(totalEvents int, signals []*signalsv1.Signal, eventStage *signalsv1.Stage, marketStage *signalsv1.Stage, aiStage *signalsv1.Stage) *signalsv1.SignalHuntSummary {
+	return &signalsv1.SignalHuntSummary{
+		Text:          buildPipelineSummaryText(totalEvents, signals, eventStage, marketStage, aiStage),
+		FailureReason: strings.Join(collectFailureDetails(eventStage, marketStage, aiStage), " | "),
+	}
+}
+
+func buildPipelineSummaryText(totalEvents int, signals []*signalsv1.Signal, eventStage *signalsv1.Stage, marketStage *signalsv1.Stage, aiStage *signalsv1.Stage) string {
 	parts := make([]string, 0, 4)
 	if eventStage != nil && eventStage.Status == signalsv1.StageStatus_STAGE_STATUS_READY {
 		parts = append(parts, fmt.Sprintf("%d CoinDesk events scanned", totalEvents))

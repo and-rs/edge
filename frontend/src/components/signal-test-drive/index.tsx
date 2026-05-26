@@ -1,26 +1,34 @@
 import { create } from "@bufbuild/protobuf"
-import { For, onMount, Show } from "solid-js"
+import ChevronsRight from "lucide-solid/icons/chevrons-right"
+import LoaderCircle from "lucide-solid/icons/loader-circle"
+import { For, Show, createSignal, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import {
-  type ListSignalsResponse,
-  ListSignalsResponseSchema,
+  SignalHuntStateSchema,
   type Signal,
-  SignalUpdateType,
+  type SignalHuntState,
   type Stage,
 } from "~/api/signals/v1/signals_pb"
 import { signalsClient } from "~/lib/rpc"
 import { Button } from "../ui/button"
-import { clearSignalCache, readSignalCache, writeSignalCache } from "./cache"
+import {
+  SIGNAL_HUNT_COOLDOWN_MS,
+  clearSignalCache,
+  readSignalCache,
+  readSignalCooldown,
+  writeSignalCache,
+  writeSignalCooldown,
+} from "./cache"
 import { LoadingStream, SignalCard, StageCard } from "./cards"
 
-type SignalTestDriveState = ListSignalsResponse & {
+type SignalTestDriveState = SignalHuntState & {
   loading: boolean
   loaded: boolean
   error: string
 }
 
 const createInitialState = (): SignalTestDriveState => ({
-  ...create(ListSignalsResponseSchema),
+  ...create(SignalHuntStateSchema),
   loading: false,
   loaded: false,
   error: "",
@@ -30,19 +38,19 @@ export const SignalTestDrive = () => {
   const [data, setData] = createStore<SignalTestDriveState>(
     createInitialState(),
   )
+  const [cooldownRemainingMs, setCooldownRemainingMs] = createSignal(0)
 
   const stages = (): Stage[] =>
-    [data.eventIngest, data.marketIngest, data.aiJudgment].filter(
-      (stage): stage is Stage => Boolean(stage),
-    )
+    [
+      data.stages?.eventIngest,
+      data.stages?.marketIngest,
+      data.stages?.aiJudgment,
+    ].filter((stage): stage is Stage => Boolean(stage))
 
-  const snapshot = (signals: Signal[] = data.signals): ListSignalsResponse =>
-    create(ListSignalsResponseSchema, {
-      eventIngest: data.eventIngest,
-      marketIngest: data.marketIngest,
-      aiJudgment: data.aiJudgment,
+  const snapshot = (signals: Signal[] = data.signals): SignalHuntState =>
+    create(SignalHuntStateSchema, {
+      stages: data.stages,
       summary: data.summary,
-      failureReason: data.failureReason,
       signals,
     })
 
@@ -68,42 +76,60 @@ export const SignalTestDrive = () => {
     if (cached) setData({ ...cached, loaded: true, loading: false, error: "" })
   }
 
-  onMount(hydrateCache)
+  const refreshCooldown = () => {
+    const remainingMs = Math.max(0, readSignalCooldown() - Date.now())
+    setCooldownRemainingMs(remainingMs)
+  }
+
+  onMount(() => {
+    hydrateCache()
+    refreshCooldown()
+    const interval = window.setInterval(refreshCooldown, 1000)
+    onCleanup(() => window.clearInterval(interval))
+  })
 
   const persist = (signals?: Signal[]) => writeSignalCache(snapshot(signals))
 
+  const startCooldown = () => {
+    const cooldownUntil = Date.now() + SIGNAL_HUNT_COOLDOWN_MS
+    writeSignalCooldown(cooldownUntil)
+    setCooldownRemainingMs(SIGNAL_HUNT_COOLDOWN_MS)
+  }
+
   const loadSignals = async () => {
+    if (data.loading || cooldownRemainingMs() > 0) return
     setData({ ...createInitialState(), loading: true })
     clearSignalCache()
+
+    let completed = false
 
     try {
       for await (const update of signalsClient.streamSignals({})) {
         let signals: Signal[] | undefined
 
-        if (update.eventIngest) setData("eventIngest", update.eventIngest)
-        if (update.marketIngest) setData("marketIngest", update.marketIngest)
-        if (update.aiJudgment) setData("aiJudgment", update.aiJudgment)
-        if (update.signal) signals = upsertSignal(update.signal)
-        if (update.summary) setData("summary", update.summary)
-        if (update.failureReason) setData("failureReason", update.failureReason)
-
-        if (
-          update.eventIngest ||
-          update.marketIngest ||
-          update.aiJudgment ||
-          update.signal ||
-          update.summary ||
-          update.failureReason
-        ) {
-          persist(signals)
-        }
-
-        if (update.type === SignalUpdateType.DONE || update.done) {
-          setData({ loading: false, loaded: true })
-          persist(signals)
+        switch (update.event.case) {
+          case "stages":
+            setData("stages", update.event.value)
+            persist()
+            break
+          case "signal":
+            signals = upsertSignal(update.event.value)
+            persist(signals)
+            break
+          case "summary":
+            setData("summary", update.event.value)
+            persist()
+            break
+          case "done":
+            completed = true
+            setData({ loading: false, loaded: true })
+            startCooldown()
+            persist(signals)
+            break
         }
       }
 
+      if (completed) return
       setData({ loading: false, loaded: true })
       persist()
     } catch (err) {
@@ -115,19 +141,42 @@ export const SignalTestDrive = () => {
     }
   }
 
+  const cooldownLabel = () => {
+    const seconds = Math.ceil(cooldownRemainingMs() / 1000)
+    if (data.loading) return "streaming signal hunt"
+    if (seconds > 0) return `refresh in ${seconds}s`
+    if (data.loaded) return "refresh signal hunt"
+    return "start signal hunt"
+  }
+
   return (
     <section id="signal-test-drive" class="flex flex-col gap-3 bento-cell">
+      <span class="">
+        Honestly I am simply gathering from kalshi and coinbase and doing an AI
+        model pass with deepseek. I could not finish. I could not produce
+        anything with ARC. I think I had good ideas. I will continue to work on
+        this idea even after the hackathon.
+      </span>
+
+      <span>
+        I believe in news/events grouping, and I believe in USDC payments. You
+        can perhaps cheack PLAN.md if you haven't I think it has most if not all
+        my vision.
+      </span>
       <div class="flex flex-row gap-2">
         <Button
           onClick={loadSignals}
-          disabled={data.loading}
-          class="w-min uppercase whitespace-nowrap"
+          disabled={data.loading || cooldownRemainingMs() > 0}
+          size="lg"
+          class="gap-2 px-5 font-semibold uppercase border disabled:opacity-60 disabled:cursor-not-allowed border-secondary/50 bg-secondary tracking-[0.18em] text-secondary-foreground hover:bg-secondary/90"
         >
-          {data.loading
-            ? "streaming..."
-            : data.loaded
-              ? "refresh test drive"
-              : "load test drive"}
+          <Show
+            when={data.loading || cooldownRemainingMs() > 0}
+            fallback={<ChevronsRight class="size-4" />}
+          >
+            <LoaderCircle class="animate-spin size-4" />
+          </Show>
+          {cooldownLabel()}
         </Button>
       </div>
 
@@ -137,13 +186,15 @@ export const SignalTestDrive = () => {
 
       <Show when={data.loaded || data.loading || data.signals.length > 0}>
         <div class="flex flex-col gap-3">
-          <Show when={data.summary}>
+          <Show when={data.summary?.text}>
             {(summary) => (
-              <div class="flex flex-col gap-2 p-3 border border-muted">
-                <div class="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+              <div class="flex flex-col gap-3 p-4 border border-muted bg-card">
+                <div class="py-1 px-2 text-xs font-semibold uppercase border w-fit border-secondary/50 bg-secondary tracking-[0.18em] text-secondary-foreground">
                   pipeline summary
                 </div>
-                <div>{summary()}</div>
+                <div class="text-lg leading-8 text-foreground/95">
+                  {summary()}
+                </div>
               </div>
             )}
           </Show>
@@ -152,9 +203,9 @@ export const SignalTestDrive = () => {
             <For each={stages()}>{(stage) => <StageCard stage={stage} />}</For>
           </div>
 
-          <Show when={data.failureReason}>
+          <Show when={data.summary?.failureReason}>
             {(reason) => (
-              <div class="font-mono text-xs text-amber-600 dark:text-amber-400">
+              <div class="p-3 font-mono text-xs text-amber-600 border dark:text-amber-400 border-amber-500/30 bg-amber-500/8">
                 {reason()}
               </div>
             )}
@@ -178,3 +229,4 @@ export const SignalTestDrive = () => {
     </section>
   )
 }
+

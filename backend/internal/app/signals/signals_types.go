@@ -8,6 +8,7 @@ import (
 const (
 	coindeskRSSURL         = "https://www.coindesk.com/arc/outboundfeeds/rss/"
 	kalshiMarketsURL       = "https://external-api.kalshi.com/trade-api/v2/markets?limit=200&status=open"
+	freeScanSignalLimit    = 5
 	defaultSignalsCacheTTL = 20 * time.Second
 	externalFetchTimeout   = 10 * time.Second
 	matchTypeNoMatch       = "no-match"
@@ -44,6 +45,7 @@ type kalshiMarketsResponse struct {
 
 type kalshiMarket struct {
 	Ticker      string `json:"ticker"`
+	EventTicker string `json:"event_ticker"`
 	Title       string `json:"title"`
 	Status      string `json:"status"`
 	Volume24hFP string `json:"volume_24h_fp"`

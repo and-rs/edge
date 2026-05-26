@@ -31,7 +31,7 @@ func (s *SignalService) fetchCoinDeskSignals(ctx context.Context) ([]newsSignal,
 		return nil, fmt.Errorf("%w: decode Coindesk RSS: %v", errInvalidProviderResponse, err)
 	}
 
-	signals := make([]newsSignal, 0, min(10, len(feed.Channel.Items)))
+	signals := make([]newsSignal, 0, min(freeScanSignalLimit, len(feed.Channel.Items)))
 	for _, item := range feed.Channel.Items {
 		publishedAt, err := time.Parse(time.RFC1123Z, item.PubDate)
 		if err != nil {
@@ -44,7 +44,7 @@ func (s *SignalService) fetchCoinDeskSignals(ctx context.Context) ([]newsSignal,
 			PublishedAt: publishedAt,
 			Keywords:    extractKeywords(item.Title + " " + item.Description),
 		})
-		if len(signals) == 10 {
+		if len(signals) == freeScanSignalLimit {
 			break
 		}
 	}

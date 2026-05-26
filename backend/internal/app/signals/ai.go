@@ -12,9 +12,6 @@ import (
 	"strings"
 
 	"github.com/index/edge/backend/internal/config"
-	openai "github.com/openai/openai-go/v3"
-	"github.com/openai/openai-go/v3/option"
-	"github.com/openai/openai-go/v3/shared"
 )
 
 var (
@@ -27,8 +24,12 @@ type SignalJudge interface {
 }
 
 type openAIJudge struct {
-	client openai.Client
-	model  string
+	client       *http.Client
+	baseURL      string
+	apiKey       string
+	organization string
+	project      string
+	model        string
 }
 
 type aiSignalInput struct {
@@ -57,6 +58,14 @@ type aiSignalResponse struct {
 	Signals []aiSignalOutput `json:"signals" jsonschema_description:"judged candidate signals"`
 }
 
+type chatCompletionResponse struct {
+	Choices []struct {
+		Message struct {
+			Content string `json:"content"`
+		} `json:"message"`
+	} `json:"choices"`
+}
+
 func NewSignalJudge(cfg config.AIConfig) (SignalJudge, error) {
 	if cfg.AuthMode == "disabled" {
 		return nil, nil
@@ -76,22 +85,13 @@ func NewSignalJudge(cfg config.AIConfig) (SignalJudge, error) {
 		transport = newAILoggingTransport(transport)
 	}
 	httpClient := &http.Client{Timeout: cfg.Timeout, Transport: transport}
-	options := []option.RequestOption{
-		option.WithBaseURL(cfg.BaseURL),
-		option.WithHTTPClient(httpClient),
-		option.WithRequestTimeout(cfg.Timeout),
-		option.WithAPIKey(cfg.APIKey),
-	}
-	if cfg.Organization != "" {
-		options = append(options, option.WithOrganization(cfg.Organization))
-	}
-	if cfg.Project != "" {
-		options = append(options, option.WithProject(cfg.Project))
-	}
-
 	return &openAIJudge{
-		client: openai.NewClient(options...),
-		model:  cfg.Model,
+		client:       httpClient,
+		baseURL:      strings.TrimRight(cfg.BaseURL, "/"),
+		apiKey:       cfg.APIKey,
+		organization: cfg.Organization,
+		project:      cfg.Project,
+		model:        cfg.Model,
 	}, nil
 }
 
@@ -109,7 +109,7 @@ func (j *openAIJudge) JudgeSignals(ctx context.Context, inputs []aiSignalInput) 
 		"You rank event-to-market signals for crypto and prediction-market operators.",
 		"Return JSON only.",
 		"Return one top-level object with key signals.",
-		"Return exactly one signals item per candidate index.",
+		"Return exactly one signals item per candidate index. Do not omit any candidate index.",
 		"Each signals item must include index, thesis, why_it_matters, match_type, and score_boost.",
 		"Keep thesis and why_it_matters compact and concrete.",
 		"score_boost must stay between -5 and 12.",
@@ -118,32 +118,55 @@ func (j *openAIJudge) JudgeSignals(ctx context.Context, inputs []aiSignalInput) 
 		"Use match_type no-match when no usable market exists.",
 	}, " ")
 
-	response, err := j.client.Chat.Completions.New(ctx, openai.ChatCompletionNewParams{
-		Model: shared.ChatModel(j.model),
-		Messages: []openai.ChatCompletionMessageParamUnion{
-			{
-				OfSystem: &openai.ChatCompletionSystemMessageParam{
-					Content: openai.ChatCompletionSystemMessageParamContentUnion{OfString: openai.String(instructions)},
-				},
-			},
-			{
-				OfUser: &openai.ChatCompletionUserMessageParam{
-					Content: openai.ChatCompletionUserMessageParamContentUnion{OfString: openai.String("Candidates:\n" + string(payload))},
-				},
-			},
+	requestBody, err := json.Marshal(map[string]any{
+		"model": j.model,
+		"messages": []map[string]string{
+			{"role": "system", "content": instructions},
+			{"role": "user", "content": "Candidates:\n" + string(payload)},
 		},
-		ResponseFormat: openai.ChatCompletionNewParamsResponseFormatUnion{
-			OfJSONObject: &shared.ResponseFormatJSONObjectParam{},
-		},
+		"response_format": map[string]string{"type": "json_object"},
+		"temperature":     0.1,
 	})
 	if err != nil {
 		return nil, err
 	}
-	if len(response.Choices) == 0 {
+
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, j.baseURL+"/chat/completions", bytes.NewReader(requestBody))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Set("Authorization", "Bearer "+j.apiKey)
+	request.Header.Set("Content-Type", "application/json")
+	if j.organization != "" {
+		request.Header.Set("OpenAI-Organization", j.organization)
+	}
+	if j.project != "" {
+		request.Header.Set("OpenAI-Project", j.project)
+	}
+
+	response, err := j.client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	responseBody, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, aiInvalidResponseErrorf("chat completion status %d: %s", response.StatusCode, string(responseBody))
+	}
+
+	var completion chatCompletionResponse
+	if err := json.Unmarshal(responseBody, &completion); err != nil {
+		return nil, aiInvalidResponseErrorf("decode chat completion response: %v", err)
+	}
+	if len(completion.Choices) == 0 {
 		return nil, aiInvalidResponseErrorf("empty chat completion choices")
 	}
 	var parsed aiSignalResponse
-	if err := json.Unmarshal([]byte(response.Choices[0].Message.Content), &parsed); err != nil {
+	if err := json.Unmarshal([]byte(completion.Choices[0].Message.Content), &parsed); err != nil {
 		return nil, aiInvalidResponseErrorf("decode chat completion body: %v", err)
 	}
 	return buildJudgments(parsed, len(inputs))
@@ -162,9 +185,6 @@ func clampFloat(value float64, minValue float64, maxValue float64) float64 {
 func buildJudgments(parsed aiSignalResponse, expectedCount int) (map[int]aiSignalOutput, error) {
 	if len(parsed.Signals) == 0 {
 		return nil, aiInvalidResponseErrorf("missing signals")
-	}
-	if len(parsed.Signals) != expectedCount {
-		return nil, aiInvalidResponseErrorf("expected %d signals, got %d", expectedCount, len(parsed.Signals))
 	}
 
 	judgments := make(map[int]aiSignalOutput, len(parsed.Signals))

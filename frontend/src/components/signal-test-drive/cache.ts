@@ -1,16 +1,22 @@
 import { create } from "@bufbuild/protobuf"
 import type { Timestamp } from "@bufbuild/protobuf/wkt"
 import {
-  ListSignalsResponseSchema,
+  PipelineStagesSchema,
+  SignalHuntStateSchema,
+  SignalHuntSummarySchema,
   SignalSchema,
   StageSchema,
-  type ListSignalsResponse,
+  type PipelineStages,
   type Signal,
+  type SignalHuntState,
+  type SignalHuntSummary,
   type Stage,
 } from "~/api/signals/v1/signals_pb"
 
 const CACHE_KEY = "iridium-edge.signal-test-drive.v1"
 const CACHE_TTL_MS = 60 * 60 * 1000
+const COOLDOWN_KEY = "iridium-edge.signal-test-drive.cooldown.v1"
+export const SIGNAL_HUNT_COOLDOWN_MS = 30 * 1000
 
 type CachedTimestamp = {
   seconds: string
@@ -24,14 +30,16 @@ type CachedSignal = Omit<Signal, "publishedAt" | "aiJudgment"> & {
   aiJudgment?: CachedStage
 }
 
-type SignalCache = Pick<
-  ListSignalsResponse,
-  "summary" | "failureReason"
-> & {
+type CachedSummary = Pick<SignalHuntSummary, "text" | "failureReason">
+
+type SignalCache = {
   savedAt: number
-  eventIngest?: CachedStage
-  marketIngest?: CachedStage
-  aiJudgment?: CachedStage
+  stages?: {
+    eventIngest?: CachedStage
+    marketIngest?: CachedStage
+    aiJudgment?: CachedStage
+  }
+  summary?: CachedSummary
   signals: CachedSignal[]
 }
 
@@ -65,6 +73,35 @@ const cacheStage = (stage?: Stage): CachedStage | undefined =>
 const hydrateStage = (stage?: CachedStage): Stage | undefined =>
   stage ? create(StageSchema, stage) : undefined
 
+const cacheStages = (stages?: PipelineStages) =>
+  stages
+    ? {
+        eventIngest: cacheStage(stages.eventIngest),
+        marketIngest: cacheStage(stages.marketIngest),
+        aiJudgment: cacheStage(stages.aiJudgment),
+      }
+    : undefined
+
+const hydrateStages = (stages?: SignalCache["stages"]): PipelineStages | undefined =>
+  stages
+    ? create(PipelineStagesSchema, {
+        eventIngest: hydrateStage(stages.eventIngest),
+        marketIngest: hydrateStage(stages.marketIngest),
+        aiJudgment: hydrateStage(stages.aiJudgment),
+      })
+    : undefined
+
+const cacheSummary = (summary?: SignalHuntSummary): CachedSummary | undefined =>
+  summary
+    ? {
+        text: summary.text,
+        failureReason: summary.failureReason,
+      }
+    : undefined
+
+const hydrateSummary = (summary?: CachedSummary): SignalHuntSummary | undefined =>
+  summary ? create(SignalHuntSummarySchema, summary) : undefined
+
 const cacheSignal = (signal: Signal): CachedSignal => ({
   ...signal,
   publishedAt: cacheTimestamp(signal.publishedAt),
@@ -78,16 +115,13 @@ const hydrateSignal = (signal: CachedSignal): Signal =>
     aiJudgment: hydrateStage(signal.aiJudgment),
   })
 
-export const writeSignalCache = (response: ListSignalsResponse): void => {
+export const writeSignalCache = (state: SignalHuntState): void => {
   if (!cacheAvailable()) return
   const cache: SignalCache = {
     savedAt: Date.now(),
-    eventIngest: cacheStage(response.eventIngest),
-    marketIngest: cacheStage(response.marketIngest),
-    aiJudgment: cacheStage(response.aiJudgment),
-    summary: response.summary,
-    failureReason: response.failureReason,
-    signals: response.signals.map(cacheSignal),
+    stages: cacheStages(state.stages),
+    summary: cacheSummary(state.summary),
+    signals: state.signals.map(cacheSignal),
   }
   window.sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache))
 }
@@ -97,7 +131,20 @@ export const clearSignalCache = (): void => {
   window.sessionStorage.removeItem(CACHE_KEY)
 }
 
-export const readSignalCache = (): ListSignalsResponse | undefined => {
+export const writeSignalCooldown = (cooldownUntil: number): void => {
+  if (!cacheAvailable()) return
+  window.localStorage.setItem(COOLDOWN_KEY, String(cooldownUntil))
+}
+
+export const readSignalCooldown = (): number => {
+  if (!cacheAvailable()) return 0
+  const rawCooldown = window.localStorage.getItem(COOLDOWN_KEY)
+  if (!rawCooldown) return 0
+  const cooldownUntil = Number(rawCooldown)
+  return Number.isFinite(cooldownUntil) ? cooldownUntil : 0
+}
+
+export const readSignalCache = (): SignalHuntState | undefined => {
   if (!cacheAvailable()) return undefined
   const rawCache = window.sessionStorage.getItem(CACHE_KEY)
   if (!rawCache) return undefined
@@ -108,12 +155,9 @@ export const readSignalCache = (): ListSignalsResponse | undefined => {
       clearSignalCache()
       return undefined
     }
-    return create(ListSignalsResponseSchema, {
-      eventIngest: hydrateStage(cache.eventIngest),
-      marketIngest: hydrateStage(cache.marketIngest),
-      aiJudgment: hydrateStage(cache.aiJudgment),
-      summary: cache.summary,
-      failureReason: cache.failureReason,
+    return create(SignalHuntStateSchema, {
+      stages: hydrateStages(cache.stages),
+      summary: hydrateSummary(cache.summary),
       signals: cache.signals.map(hydrateSignal),
     })
   } catch (err) {

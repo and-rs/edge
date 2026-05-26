@@ -1,8 +1,9 @@
 import { animate, stagger } from "animejs"
 import ChevronsRight from "lucide-solid/icons/chevrons-right"
-import { For, onMount } from "solid-js"
+import { For, onCleanup, onMount } from "solid-js"
 import { Brand } from "~/components/brand"
 import { SignalTestDrive } from "~/components/signal-test-drive"
+import { Button } from "~/components/ui/button"
 import { PowerButton } from "~/components/ui/power-button"
 
 const audience = ["Operators", "Desks", "Research"]
@@ -12,7 +13,7 @@ const coreTech = [
   "SolidStart",
   "Connect-RPC",
   "Postgres",
-  "OpenAI",
+  "Inference APIs",
   "Arc USDC",
 ]
 
@@ -82,6 +83,12 @@ const HomeRoute = () => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
     if (!heroRef || !subRef || !endgameRef) return
 
+    const timeouts = [
+      window.setTimeout(animateCardTwo, 120),
+      window.setTimeout(animateCardThree, 220),
+      window.setTimeout(animateEndgame, 320),
+    ]
+
     animate(heroRef, {
       translateY: [18, 0],
       opacity: [0, 1],
@@ -111,9 +118,7 @@ const HomeRoute = () => {
     })
 
     animateCardOne()
-    setTimeout(animateCardTwo, 120)
-    setTimeout(animateCardThree, 220)
-    setTimeout(animateEndgame, 320)
+    onCleanup(() => timeouts.forEach((timeout) => window.clearTimeout(timeout)))
   })
 
   return (
