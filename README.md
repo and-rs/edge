@@ -1,5 +1,7 @@
 # Iridium Edge
 
+# https://edge.baut.dev
+
 Event-to-market intelligence for crypto and prediction-market users.
 
 Iridium Edge watches news, posts, and links, groups them into real events, maps
